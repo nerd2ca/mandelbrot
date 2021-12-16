@@ -17,12 +17,8 @@ m.mount(document.body, {
                 ctx.save()
                 ctx.fillStyle = '#000'
                 ctx.fillRect(0, 0, plane.width, plane.height)
-                let region = new Path2D()
-                var sq = Math.floor(Math.min(plane.width, plane.height))
-                region.rect((plane.width-sq)/2, (plane.height-sq)/2, sq, sq)
-                ctx.clip(region)
                 if (imgdata) {
-                    ctx.drawImage(imgdata, (plane.width-sq)/2 + dragging.x, (plane.height-sq)/2 + dragging.y)
+                    ctx.drawImage(imgdata, dragging.x, dragging.y)
                 }
                 ctx.restore()
             },
@@ -68,7 +64,7 @@ mandelbrot()
 function mandelbrot() {
     var cx, cy, scale
     var mpix, lores, x, y, alldone
-    var mw, mh
+    var mw, mh, sq
     var initres = 8
     var restart = false
     mandelbrot.init = () => {
@@ -80,16 +76,16 @@ function mandelbrot() {
         mandelbrot.zero()
     }
     mandelbrot.move = (x, y) => {
-        cx -= x/mw/scale
-        cy -= y/mh/scale
+        cx -= x/sq/scale
+        cy -= y/sq/scale
         recentre()
         restart = true
     }
     mandelbrot.zoom = (x, y, magnify) => {
         if (scale * magnify < 1/2.47)
             magnify = 1/2.47/scale
-        cx += x/mw/scale*(1 - 1/magnify)
-        cy += y/mw/scale*(1 - 1/magnify)
+        cx += x/sq/scale*(1 - 1/magnify)
+        cy += y/sq/scale*(1 - 1/magnify)
         scale = scale * magnify
         recentre()
         restart = true
@@ -105,8 +101,9 @@ function mandelbrot() {
         history.replaceState({}, 'mandelbrot', loc)
     }
     mandelbrot.zero = () => {
-        mw = Math.min(plane.width, plane.height)
-        mh = Math.min(plane.width, plane.height)
+        mw = plane.width
+        mh = plane.height
+        sq = Math.min(mw, mh)
         mpix = new Uint8ClampedArray(mw*mh*4)
         lores = initres
         x = 0
@@ -115,8 +112,8 @@ function mandelbrot() {
     }
     mandelbrot.plot = () => {
         if (lores == initres || x % (lores*2) > 0 || y % (lores*2) > 0) {
-            var x0 = (x/mw-0.5)/scale + cx
-            var y0 = (y/mh-0.5)/scale + cy
+            var x0 = ((x-(mw-sq)/2)/sq-0.5)/scale + cx
+            var y0 = ((y-(mh-sq)/2)/sq-0.5)/scale + cy
             var ix = 0
             var iy = 0
             var iteration = 0
@@ -155,8 +152,8 @@ function mandelbrot() {
                     lores = Math.floor(lores/2)
             }
             createImageBitmap(new ImageData(mpix, mw), 0, 0, mw, mh, {
-                resizeWidth: Math.min(plane.width, plane.height),
-                resizeHeight: Math.min(plane.width, plane.height),
+                resizeWidth: plane.width,
+                resizeHeight: plane.height,
             }).then((bitmap) => {
                 imgdata = bitmap
             })
