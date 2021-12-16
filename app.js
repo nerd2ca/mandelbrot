@@ -69,12 +69,14 @@ function mandelbrot() {
     var cx, cy, scale
     var mpix, lores, x, y, alldone
     var mw, mh
-    var initres = 16
+    var initres = 8
     var restart = false
     mandelbrot.init = () => {
-        cx = 0.47 - 2.47/2
-        cy = 0
-        scale = 1/2.47
+        var params = document.location.hash.substr(1).split('/')
+        cx = parseFloat(params[0]) || 0
+        cy = parseFloat(params[1]) || 0
+        scale = parseFloat(params[2]) || 0
+        recentre()
         mandelbrot.zero()
     }
     mandelbrot.move = (x, y) => {
@@ -93,10 +95,14 @@ function mandelbrot() {
         restart = true
     }
     function recentre() {
+        if (scale < 1/2.47) scale = 1/2.47
         if (cx + 1/2/scale > 0.47) cx = Math.min(cx, 0.47 - 1/2/scale)
         if (cx - 1/2/scale < -2) cx = Math.max(cx, -2 + 1/2/scale)
         if (cy + 1/2/scale > 1.235) cy = Math.min(cy, 1.235 - 1/2/scale)
         if (cy - 1/2/scale < -1.235) cy = Math.max(cy, -1.235 + 1/2/scale)
+        var loc = document.location
+        loc.hash = `${cx}/${cy}/${scale}`
+        history.replaceState({}, 'mandelbrot', loc)
     }
     mandelbrot.zero = () => {
         mw = Math.min(plane.width, plane.height)
