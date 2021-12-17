@@ -245,10 +245,12 @@ function mandelbrot() {
             restart = false
             mandelbrot.zero()
         }
+        var t0 = new Date()
         for (var i=0; (i<1000 || lores >= initres) && !alldone; i++)
             mandelbrot.plot()
+        var dt = new Date() - t0
         if (!updTimer)
-            updTimer = window.setTimeout(() => { updTimer = undefined; mandelbrot.upd() }, alldone ? 1000 : 10)
+            updTimer = window.setTimeout(() => { updTimer = undefined; mandelbrot.upd() }, alldone ? 1000 : dt)
     }
     mandelbrot.init()
     mandelbrot.upd()
