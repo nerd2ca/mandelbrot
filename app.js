@@ -1,5 +1,6 @@
 var imgdata
 var dragging = {x: 0, y: 0}
+var touching = {dx: 0, dy: 0, scale: 1, startx: 0, starty: 0}
 var plane = {width: window.innerWidth, height: window.innerHeight}
 m.mount(document.body, {
     view: function(body) {
@@ -18,7 +19,12 @@ m.mount(document.body, {
                 ctx.fillStyle = '#000'
                 ctx.fillRect(0, 0, plane.width, plane.height)
                 if (imgdata) {
-                    ctx.drawImage(imgdata, dragging.x, dragging.y)
+                    ctx.drawImage(
+                        imgdata,
+                        (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
+                        (dragging.y+touching.dy) + ((touching.starty)*(1-touching.scale)),
+                        plane.width * touching.scale,
+                        plane.height * touching.scale)
                 }
                 ctx.restore()
             },
@@ -49,7 +55,7 @@ window.addEventListener("mousemove", (e) => {
             dragging.y = e.clientY - dragging.startY
         }
     } else if (dragging.started) {
-        mandelbrot.move(dragging.x, dragging.y)
+        mandelbrot.zoom_n_move(0, 0, 1, dragging.x, dragging.y)
         dragging.x = 0
         dragging.y = 0
         dragging.started = false
@@ -57,9 +63,63 @@ window.addEventListener("mousemove", (e) => {
     m.redraw()
 })
 window.addEventListener("wheel", (e) => {
-    mandelbrot.zoom(e.clientX-e.target.clientWidth/2, e.clientY-e.target.clientHeight/2, Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1)))
+    mandelbrot.zoom_n_move(e.clientX-e.target.clientWidth/2, e.clientY-e.target.clientHeight/2, Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1)), 0, 0)
     m.redraw()
 })
+;['touchstart', 'touchmove', 'touchend'].forEach((et) => {
+    window.addEventListener(et, handleTouch, {passive: false})
+})
+function handleTouch(e) {
+    e.preventDefault()
+    if (e.type == 'touchend') {
+        if (!touching.started)
+            return
+        mandelbrot.zoom_n_move(
+            touching.startx-e.target.clientWidth/2,
+            touching.starty-e.target.clientHeight/2,
+            touching.scale,
+            touching.dx, touching.dy)
+        touching.scale = 1
+        touching.dx = 0
+        touching.dy = 0
+        touching.started = false
+        m.redraw()
+        return
+    }
+    if (e.targetTouches.length > 2)
+        return
+    var span = 1
+    var x = e.targetTouches[0].clientX
+    var y = e.targetTouches[0].clientY
+    if (e.targetTouches.length == 2) {
+        span = Math.pow(
+            Math.pow(x - e.targetTouches[1].clientX, 2) +
+                Math.pow(y - e.targetTouches[1].clientY, 2), 1/2)
+        x = (x + e.targetTouches[1].clientX) / 2
+        y = (y + e.targetTouches[1].clientY) / 2
+        if (touching.startspan == 1) {
+            touching.startspan = span
+            touching.startx += (e.targetTouches[1].clientX - e.targetTouches[0].clientX) / 2
+            touching.starty += (e.targetTouches[1].clientY - e.targetTouches[0].clientY) / 2
+        }
+    }
+    if (!touching.started) {
+        touching.startx = x
+        touching.starty = y
+        touching.startspan = span
+        touching.scale = 1
+        touching.dx = 0
+        touching.dy = 0
+        touching.started = true
+    } else {
+        touching.scale = span / touching.startspan
+        touching.dx = x - touching.startx
+        touching.dy = y - touching.starty
+        touching.ctrx = touching.startx + touching.dx
+        touching.ctry = touching.starty + touching.dy
+    }
+    m.redraw()
+}
 mandelbrot()
 function mandelbrot() {
     var cx, cy, scale
@@ -75,20 +135,17 @@ function mandelbrot() {
         recentre()
         mandelbrot.zero()
     }
-    mandelbrot.move = (x, y) => {
-        cx -= x/sq/scale
-        cy -= y/sq/scale
-        recentre()
-        restart = true
-    }
-    mandelbrot.zoom = (x, y, magnify) => {
+    mandelbrot.zoom_n_move = (x, y, magnify, dx, dy) => {
         if (scale * magnify < 1/2.47)
             magnify = 1/2.47/scale
         cx += x/sq/scale*(1 - 1/magnify)
         cy += y/sq/scale*(1 - 1/magnify)
         scale = scale * magnify
+        cx -= dx/sq/scale
+        cy -= dy/sq/scale
         recentre()
         restart = true
+        mandelbrot.upd()
     }
     function recentre() {
         if (scale < 1/2.47) scale = 1/2.47
@@ -111,7 +168,7 @@ function mandelbrot() {
         alldone = false
     }
     mandelbrot.plot = () => {
-        if (lores == initres || x % (lores*2) > 0 || y % (lores*2) > 0) {
+        if (lores == initres || (x % (lores*2) > 0) || (y % (lores*2) > 0)) {
             var x0 = ((x-(mw-sq)/2)/sq-0.5)/scale + cx
             var y0 = ((y-(mh-sq)/2)/sq-0.5)/scale + cy
             var ix = 0
@@ -160,6 +217,7 @@ function mandelbrot() {
             m.redraw()
         }
     }
+    var updTimer
     mandelbrot.upd = () => {
         if (restart) {
             restart = false
@@ -167,7 +225,8 @@ function mandelbrot() {
         }
         for (var i=0; (i<1000 || lores >= initres) && !alldone; i++)
             mandelbrot.plot()
-        window.setTimeout(mandelbrot.upd, alldone ? 1000 : 10)
+        if (!updTimer)
+            updTimer = window.setTimeout(() => { updTimer = undefined; mandelbrot.upd() }, alldone ? 1000 : 10)
     }
     mandelbrot.init()
     mandelbrot.upd()
