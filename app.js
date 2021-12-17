@@ -70,15 +70,16 @@ window.addEventListener("mousemove", (e) => {
     m.redraw()
 })
 window.addEventListener("wheel", (e) => {
+    e.preventDefault()
     mandelbrot.zoom_n_move(e.clientX-e.target.clientWidth/2, e.clientY-e.target.clientHeight/2, Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1)), 0, 0)
     m.redraw()
-})
-;['touchstart', 'touchmove', 'touchend'].forEach((et) => {
+}, {passive: false})
+;['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((et) => {
     window.addEventListener(et, handleTouch, {passive: false})
 })
 function handleTouch(e) {
     e.preventDefault()
-    if (e.type == 'touchend') {
+    if (e.type == 'touchend' || e.type == 'touchcancel') {
         if (!touching.started)
             return
         mandelbrot.zoom_n_move(
