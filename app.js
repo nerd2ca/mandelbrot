@@ -122,11 +122,38 @@ function handleTouch(e) {
 }
 mandelbrot()
 function mandelbrot() {
+    const max_iteration = 128
     var cx, cy, scale
     var mpix, lores, x, y, alldone
     var mw, mh, sq
     var initres = 8
     var restart = false
+    var palette = []
+    for (var i=0; i<=max_iteration; i++) {
+        var ii = i/max_iteration
+        var c1 = [-1, 0, 0, 0], c
+        [[0, 0, 7, 100],
+         [0.16, 32, 107, 203],
+         [0.42, 237, 255, 255],
+         [0.6425, 255, 170, 0],
+         [0.8575, 0, 2, 0],
+         [1, 0, 2, 0],
+        ].some((c2) => {
+            if (ii > c2[0]) {
+                c1 = c2
+                return false
+            }
+            var d = (ii - c1[0]) / (c2[0] - c1[0])
+            c = [
+                c1[1] + d*(c2[1]-c1[1]),
+                c1[2] + d*(c2[2]-c1[2]),
+                c1[3] + d*(c2[3]-c1[3]),
+                255,
+            ]
+            return true
+        })
+        palette[i] = c
+    }
     mandelbrot.init = () => {
         var params = document.location.hash.substr(1).split('/')
         cx = parseFloat(params[0]) || 0
@@ -174,25 +201,20 @@ function mandelbrot() {
             var ix = 0
             var iy = 0
             var iteration = 0
-            const max_iteration = 128
             while (ix*ix + iy*iy <= 2*2 && iteration < max_iteration) {
                 var xtemp = ix*ix - iy*iy + x0
                 iy = 2*ix*iy + y0
                 ix = xtemp
                 iteration++
             }
-
-            var z = Math.floor(1024 * (1 - iteration / max_iteration))
-            var b = Math.min(z, 255)
-            var r = Math.min(Math.max(z-256, 0), 255)/2 + b/2
-            var g = Math.max(z-512, 0)/6 + b/6
+            rgba = palette[iteration]
             for (var py = 0; py < lores; py++) {
                 var i = (((y+py)*mw)+x)*4
                 for (var px = 0; px < lores; px++) {
-                    mpix[i] = r
-                    mpix[i+1] = g
-                    mpix[i+2] = b
-                    mpix[i+3] = 255
+                    mpix[i] = rgba[0]
+                    mpix[i+1] = rgba[1]
+                    mpix[i+2] = rgba[2]
+                    mpix[i+3] = rgba[3]
                     i += 4
                 }
             }
