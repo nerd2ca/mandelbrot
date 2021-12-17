@@ -34,6 +34,13 @@ m.mount(document.body, {
 window.addEventListener("resize", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
+    mandelbrot.upd()
+    m.redraw()
+})
+window.addEventListener("orientationchange", (e) => {
+    plane = {width: window.innerWidth, height: window.innerHeight}
+    mandelbrot.zero()
+    mandelbrot.upd()
     m.redraw()
 })
 window.addEventListener("mouseup", (e) => {
