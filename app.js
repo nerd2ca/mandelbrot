@@ -209,10 +209,12 @@ function mandelbrot() {
             var ix = 0
             var iy = 0
             var iteration = 0
-            while (ix*ix + iy*iy <= 2*2 && iteration < max_iteration) {
-                var xtemp = ix*ix - iy*iy + x0
+            while (iteration < max_iteration) {
+                var ix2 = ix*ix, iy2 = iy*iy
+                if (ix2 + iy2 > 4) break
+                var xnext = ix2 - iy2 + x0
                 iy = 2*ix*iy + y0
-                ix = xtemp
+                ix = xnext
                 iteration++
             }
             rgba = palette[iteration]
@@ -238,27 +240,28 @@ function mandelbrot() {
                 else
                     lores = Math.floor(lores/2)
             }
-            createImageBitmap(new ImageData(mpix, mw), 0, 0, mw, mh, {
-                resizeWidth: plane.width,
-                resizeHeight: plane.height,
-            }).then((bitmap) => {
-                imgdata = bitmap
-            })
-            m.redraw()
+            if (y % (initres*4) == 0) {
+                createImageBitmap(new ImageData(mpix, mw), 0, 0, mw, mh, {
+                    resizeWidth: plane.width,
+                    resizeHeight: plane.height,
+                }).then((bitmap) => {
+                    imgdata = bitmap
+                    m.redraw()
+                })
+            }
         }
     }
     var updTimer
     mandelbrot.upd = () => {
         if (restart) {
-            restart = false
             mandelbrot.zero()
-        }
-        var t0 = new Date()
-        for (var i=0; (i<1000 || lores >= initres) && !alldone; i++)
+            restart = false
+        } else if (alldone)
+            return
+        var pts = plane.width*plane.height/initres/initres
+        for (var i=0; (i<pts || lores >= initres) && !alldone; i++)
             mandelbrot.plot()
-        var dt = new Date() - t0
-        if (!updTimer)
-            updTimer = window.setTimeout(() => { updTimer = undefined; mandelbrot.upd() }, alldone ? 1000 : dt)
+        window.requestAnimationFrame(mandelbrot.upd)
     }
     mandelbrot.init()
     mandelbrot.upd()
