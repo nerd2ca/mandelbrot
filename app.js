@@ -31,6 +31,8 @@ m.mount(document.body, {
         })
     },
 })
+mandelbrot()
+window.addEventListener('hashchange', mandelbrot)
 window.addEventListener("resize", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
@@ -71,7 +73,10 @@ window.addEventListener("mousemove", (e) => {
 })
 window.addEventListener("wheel", (e) => {
     e.preventDefault()
-    mandelbrot.zoom_n_move(e.clientX-e.target.clientWidth/2, e.clientY-e.target.clientHeight/2, Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1)), 0, 0)
+    if (e.ctrlKey)
+        mandelbrot.more_iterations(Math.pow(1.1, Math.max(Math.min(-e.deltaY/100, 1), -1)))
+    else
+        mandelbrot.zoom_n_move(e.clientX-e.target.clientWidth/2, e.clientY-e.target.clientHeight/2, Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1)), 0, 0)
     m.redraw()
 }, {passive: false})
 ;['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((et) => {
@@ -128,47 +133,30 @@ function handleTouch(e) {
     }
     m.redraw()
 }
-mandelbrot()
 function mandelbrot() {
-    const max_iteration = 128
+    var max_iteration
     var cx, cy, scale
     var mpix, lores, x, y, alldone
     var mw, mh, sq
     var initres = 8
     var restart = false
     var palette = []
-    for (var i=0; i<=max_iteration; i++) {
-        var ii = i/max_iteration
-        var c1 = [-1, 0, 0, 0], c
-        [[0, 0, 7, 100],
-         [0.16, 32, 107, 203],
-         [0.42, 237, 255, 255],
-         [0.6425, 255, 170, 0],
-         [0.8575, 0, 2, 0],
-         [1, 0, 2, 0],
-        ].some((c2) => {
-            if (ii > c2[0]) {
-                c1 = c2
-                return false
-            }
-            var d = (ii - c1[0]) / (c2[0] - c1[0])
-            c = [
-                c1[1] + d*(c2[1]-c1[1]),
-                c1[2] + d*(c2[2]-c1[2]),
-                c1[3] + d*(c2[3]-c1[3]),
-                255,
-            ]
-            return true
-        })
-        palette[i] = c
-    }
     mandelbrot.init = () => {
         var params = document.location.hash.substr(1).split('/')
         cx = parseFloat(params[0]) || 0
         cy = parseFloat(params[1]) || 0
         scale = parseFloat(params[2]) || 0
+        max_iteration = parseInt(params[3]) || 128
         recentre()
+        update_palette()
         mandelbrot.zero()
+    }
+    mandelbrot.more_iterations = (factor) => {
+        max_iteration = Math.max(16, Math.ceil(max_iteration * factor))
+        update_palette()
+        recentre()
+        restart = true
+        mandelbrot.upd()
     }
     mandelbrot.zoom_n_move = (x, y, magnify, dx, dy) => {
         if (scale * magnify < 1/2.47)
@@ -189,8 +177,35 @@ function mandelbrot() {
         if (cy + 1/2/scale > 1.235) cy = Math.min(cy, 1.235 - 1/2/scale)
         if (cy - 1/2/scale < -1.235) cy = Math.max(cy, -1.235 + 1/2/scale)
         var loc = document.location
-        loc.hash = `${cx}/${cy}/${scale}`
+        loc.hash = `${cx}/${cy}/${scale}/${max_iteration}`
         history.replaceState({}, 'mandelbrot', loc)
+    }
+    function update_palette() {
+        for (var i=0; i<=max_iteration; i++) {
+            var ii = i/max_iteration
+            var c1 = [-1, 0, 0, 0], c
+            [[0, 0, 7, 100],
+             [0.16, 32, 107, 203],
+             [0.42, 237, 255, 255],
+             [0.6425, 255, 170, 0],
+             [0.8575, 0, 2, 0],
+             [1, 0, 2, 0],
+            ].some((c2) => {
+                if (ii > c2[0]) {
+                    c1 = c2
+                    return false
+                }
+                var d = (ii - c1[0]) / (c2[0] - c1[0])
+                c = [
+                    c1[1] + d*(c2[1]-c1[1]),
+                    c1[2] + d*(c2[2]-c1[2]),
+                    c1[3] + d*(c2[3]-c1[3]),
+                    255,
+                ]
+                return true
+            })
+            palette[i] = c
+        }
     }
     mandelbrot.zero = () => {
         mw = plane.width
