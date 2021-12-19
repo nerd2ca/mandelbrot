@@ -254,7 +254,7 @@ function mandelbrot() {
                 else
                     lores = Math.floor(lores/2)
             }
-            if (y % (initres*4) == 0) {
+            if (y == 0) {
                 createImageBitmap(new ImageData(mpix, mw), 0, 0, mw, mh, {
                     resizeWidth: plane.width,
                     resizeHeight: plane.height,
