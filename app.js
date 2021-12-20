@@ -159,6 +159,7 @@ function mandelbrot() {
         mandelbrot.upd()
     }
     mandelbrot.zoom_n_move = (x, y, magnify, dx, dy) => {
+        if (scale >= 1e13 && magnify > 1) return
         if (scale * magnify < 1/2.47)
             magnify = 1/2.47/scale
         cx += x/sq/scale*(1 - 1/magnify)
@@ -176,6 +177,7 @@ function mandelbrot() {
         if (cx - 1/2/scale < -2) cx = Math.max(cx, -2 + 1/2/scale)
         if (cy + 1/2/scale > 1.235) cy = Math.min(cy, 1.235 - 1/2/scale)
         if (cy - 1/2/scale < -1.235) cy = Math.max(cy, -1.235 + 1/2/scale)
+        if (scale > 1e13) scale = 1e13
         var loc = document.location
         loc.hash = `${cx}/${cy}/${scale}/${max_iteration}`
         history.replaceState({}, 'mandelbrot', loc)
