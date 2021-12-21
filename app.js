@@ -1,3 +1,4 @@
+var shiftDown = false
 var onscreen = {ctx: null, frame: {}}
 var dragging = {x: 0, y: 0}
 var touching = {dx: 0, dy: 0, scale: 1, startx: 0, starty: 0}
@@ -46,6 +47,12 @@ window.addEventListener("orientationchange", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
     m.redraw()
+})
+window.addEventListener("keydown", (e) => {
+    if (e.key == 'Shift') shiftDown = true
+})
+window.addEventListener("keyup", (e) => {
+    if (e.key == 'Shift') shiftDown = false
 })
 window.addEventListener("mouseup", (e) => {
     if (dragging.started) {
@@ -134,7 +141,7 @@ function handleTouch(e) {
     m.redraw()
 }
 function mandelbrot() {
-    const initres = 8, flyfactor = 2, flyres = 1
+    const initres = 8, flyfactor = 2, flyres = 2
     var max_iteration, cx, cy, scaletarget
     var x, y
     var updated = false
@@ -257,14 +264,17 @@ function mandelbrot() {
         frames = [newframe(scaletarget)]
     }
     function newframe(scale) {
+        var hires = scale < scaletarget ? flyfactor : 1
+        var w = plane.width * hires
+        var h = plane.height * hires
         return {
             renderstart: performance.now(),
             scale: scale,
             lores: initres,
-            buf: new Uint8ClampedArray(plane.width * plane.height * 4),
-            w: plane.width,
-            h: plane.height,
-            sq: Math.min(plane.width, plane.height),
+            buf: new Uint8ClampedArray(w*h*4),
+            w: w,
+            h: h,
+            sq: Math.min(w, h),
         }
     }
     mandelbrot.plot = () => {
@@ -307,13 +317,15 @@ function mandelbrot() {
         y = 0
         f.lores = Math.floor(f.lores/2)
 
-        if (f.scale < scaletarget && f.lores < flyres)
+        var curflyres = flyres * (shiftDown ? 2 : 1)
+
+        if (f.scale < scaletarget && f.lores < curflyres)
             frames.push(newframe(Math.min(scaletarget, f.scale * flyfactor)))
 
-        if (frames.length < 2 || f.lores < flyres)
+        if (frames.length < 2 || f.lores < curflyres)
             createImageBitmap(new ImageData(f.buf, f.w), 0, 0, f.w, f.h, {
-                resizeWidth: plane.width,
-                resizeHeight: plane.height,
+                resizeWidth: f.w,
+                resizeHeight: f.h,
             }).then((img) => {
                 updated = true
                 f.rendertime = performance.now() - f.renderstart
