@@ -49,7 +49,7 @@ window.addEventListener("orientationchange", (e) => {
 })
 window.addEventListener("mouseup", (e) => {
     if (dragging.started) {
-        mandelbrot.move(dragging.x, dragging.y)
+        mandelbrot.zoom_n_move(0, 0, 1, dragging.x, dragging.y)
         dragging.x = 0
         dragging.y = 0
         dragging.started = false
@@ -180,7 +180,7 @@ function mandelbrot() {
             onscreen.frame = frames[0]
         if (onscreen.ctx && onscreen.frame.img) {
             if (dragging.started)
-                ctx.fillRect(0, 0, plane.width, plane.height)
+                onscreen.ctx.fillRect(0, 0, plane.width, plane.height)
             onscreen.ctx.drawImage(
                 onscreen.frame.img,
                 (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
