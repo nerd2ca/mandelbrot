@@ -222,8 +222,8 @@ function mandelbrot() {
         if (scaletarget < 1/2.47) scaletarget = 1/2.47
         cx = Math.min(cx, 0.47)
         cx = Math.max(cx, -2)
-        cy = Math.min(cy, 1.235)
-        cy = Math.max(cy, -1.235)
+        cy = Math.min(cy, 1.12)
+        cy = Math.max(cy, -1.12)
         if (scaletarget > 1e13) scaletarget = 1e13
         curhash = `#${cx}/${cy}/${scaletarget}/${max_iteration}`
         if (updhash)
