@@ -1,7 +1,8 @@
-var imgdata
+var onscreen = {ctx: null, frame: {}}
 var dragging = {x: 0, y: 0}
 var touching = {dx: 0, dy: 0, scale: 1, startx: 0, starty: 0}
 var plane = {width: window.innerWidth, height: window.innerHeight}
+var curhash
 m.mount(document.body, {
     view: function(body) {
         return m('canvas', {
@@ -14,35 +15,36 @@ m.mount(document.body, {
                 canvas.attrs.draw(canvas)
             },
             draw: (canvas) => {
-                const ctx = canvas.dom.getContext('2d')
-                ctx.save()
+                var ctx = canvas.dom.getContext('2d')
                 ctx.fillStyle = '#000'
                 ctx.fillRect(0, 0, plane.width, plane.height)
-                if (imgdata) {
+                if (onscreen.frame.img) {
                     ctx.drawImage(
-                        imgdata,
+                        onscreen.frame.img,
                         (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
                         (dragging.y+touching.dy) + ((touching.starty)*(1-touching.scale)),
                         plane.width * touching.scale,
                         plane.height * touching.scale)
                 }
-                ctx.restore()
+                onscreen.ctx = ctx
             },
         })
     },
 })
 mandelbrot()
-window.addEventListener('hashchange', mandelbrot)
+window.addEventListener('hashchange', () => {
+    if (curhash != document.location.hash) {
+        mandelbrot.init()
+    }
+})
 window.addEventListener("resize", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
-    mandelbrot.upd()
     m.redraw()
 })
 window.addEventListener("orientationchange", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
-    mandelbrot.upd()
     m.redraw()
 })
 window.addEventListener("mouseup", (e) => {
@@ -69,7 +71,6 @@ window.addEventListener("mousemove", (e) => {
         dragging.y = 0
         dragging.started = false
     }
-    m.redraw()
 })
 window.addEventListener("wheel", (e) => {
     e.preventDefault()
@@ -77,7 +78,6 @@ window.addEventListener("wheel", (e) => {
         mandelbrot.more_iterations(Math.pow(1.1, Math.max(Math.min(-e.deltaY/100, 1), -1)))
     else
         mandelbrot.zoom_n_move(e.clientX-e.target.clientWidth/2, e.clientY-e.target.clientHeight/2, Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1)), 0, 0)
-    m.redraw()
 }, {passive: false})
 ;['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((et) => {
     window.addEventListener(et, handleTouch, {passive: false})
@@ -134,31 +134,71 @@ function handleTouch(e) {
     m.redraw()
 }
 function mandelbrot() {
-    var max_iteration
-    var cx, cy, scale
-    var mpix, lores, x, y, alldone
-    var mw, mh, sq
-    var initres = 8
-    var restart = false
+    const initres = 8, flyfactor = 2, flyres = 1
+    var max_iteration, cx, cy, scaletarget
+    var x, y
+    var updated = false
+    var updhash
     var palette = []
+    var frames = [], af_id, af_t
     mandelbrot.init = () => {
-        var params = document.location.hash.substr(1).split('/')
+        curhash = document.location.hash
+        var params = curhash.substr(1).split('/')
         cx = parseFloat(params[0]) || 0
         cy = parseFloat(params[1]) || 0
-        scale = parseFloat(params[2]) || 0
+        scaletarget = parseFloat(params[2]) || 1/2.47
         max_iteration = parseInt(params[3]) || 128
-        recentre()
         update_palette()
-        mandelbrot.zero()
+        x = 0
+        y = 0
+        frames = [newframe(1/2.47)]
+        if (af_id)
+            window.cancelAnimationFrame(af_id)
+        af_id = window.requestAnimationFrame(animationFrame)
+        af_t = null
+    }
+    function animationFrame(t) {
+        if (frames.length < 1 || (scaletarget == frames[0].scale && !updated && !dragging.started && !touching.started))
+            return window.requestAnimationFrame(animationFrame)
+        updated = false
+        if (frames.length > 1) {
+            touching.dx = 0
+            touching.dy = 0
+            touching.startx = plane.width/2
+            touching.starty = plane.height/2
+            if (!af_t)
+                af_t = performance.now()
+            var progress = Math.min(1, (t - af_t) / frames[0].rendertime)
+            if (progress == 1 && frames[1].img) {
+                frames.shift()
+                touching.scale = 1
+                af_t = t
+            } else
+                touching.scale = Math.pow(frames[1].scale/frames[0].scale, progress)
+        }
+        if (frames[0].img)
+            onscreen.frame = frames[0]
+        if (onscreen.ctx && onscreen.frame.img) {
+            if (dragging.started)
+                ctx.fillRect(0, 0, plane.width, plane.height)
+            onscreen.ctx.drawImage(
+                onscreen.frame.img,
+                (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
+                (dragging.y+touching.dy) + ((touching.starty)*(1-touching.scale)),
+                plane.width * touching.scale,
+                plane.height * touching.scale)
+        }
+        window.requestAnimationFrame(animationFrame)
     }
     mandelbrot.more_iterations = (factor) => {
         max_iteration = Math.max(16, Math.ceil(max_iteration * factor))
         update_palette()
         recentre()
-        restart = true
-        mandelbrot.upd()
+        mandelbrot.zero()
     }
     mandelbrot.zoom_n_move = (x, y, magnify, dx, dy) => {
+        var scale = frames.length > 0 ? frames[0].scale : scaletarget
+        var sq = Math.min(plane.width, plane.height)
         if (scale >= 1e13 && magnify > 1) return
         if (scale * magnify < 1/2.47)
             magnify = 1/2.47/scale
@@ -167,20 +207,23 @@ function mandelbrot() {
         scale = scale * magnify
         cx -= dx/sq/scale
         cy -= dy/sq/scale
+        scaletarget = scale
         recentre()
-        restart = true
-        mandelbrot.upd()
+        mandelbrot.zero()
     }
     function recentre() {
-        if (scale < 1/2.47) scale = 1/2.47
-        if (cx + 1/2/scale > 0.47) cx = Math.min(cx, 0.47 - 1/2/scale)
-        if (cx - 1/2/scale < -2) cx = Math.max(cx, -2 + 1/2/scale)
-        if (cy + 1/2/scale > 1.235) cy = Math.min(cy, 1.235 - 1/2/scale)
-        if (cy - 1/2/scale < -1.235) cy = Math.max(cy, -1.235 + 1/2/scale)
-        if (scale > 1e13) scale = 1e13
-        var loc = document.location
-        loc.hash = `${cx}/${cy}/${scale}/${max_iteration}`
-        history.replaceState({}, 'mandelbrot', loc)
+        if (scaletarget < 1/2.47) scaletarget = 1/2.47
+        cx = Math.min(cx, 0.47)
+        cx = Math.max(cx, -2)
+        cy = Math.min(cy, 1.235)
+        cy = Math.max(cy, -1.235)
+        if (scaletarget > 1e13) scaletarget = 1e13
+        curhash = `#${cx}/${cy}/${scaletarget}/${max_iteration}`
+        if (updhash)
+            window.clearTimeout(updhash)
+        updhash = window.setTimeout(() => {
+            document.location.hash = curhash
+        }, 1000)
     }
     function update_palette() {
         for (var i=0; i<=max_iteration; i++) {
@@ -209,19 +252,29 @@ function mandelbrot() {
         }
     }
     mandelbrot.zero = () => {
-        mw = plane.width
-        mh = plane.height
-        sq = Math.min(mw, mh)
-        mpix = new Uint8ClampedArray(mw*mh*4)
-        lores = initres
         x = 0
         y = 0
-        alldone = false
+        frames = [newframe(scaletarget)]
+    }
+    function newframe(scale) {
+        return {
+            renderstart: performance.now(),
+            scale: scale,
+            lores: initres,
+            buf: new Uint8ClampedArray(plane.width * plane.height * 4),
+            w: plane.width,
+            h: plane.height,
+            sq: Math.min(plane.width, plane.height),
+        }
     }
     mandelbrot.plot = () => {
-        if (lores == initres || (x % (lores*2) > 0) || (y % (lores*2) > 0)) {
-            var x0 = ((x-(mw-sq)/2)/sq-0.5)/scale + cx
-            var y0 = ((y-(mh-sq)/2)/sq-0.5)/scale + cy
+        var f = frames[frames.length-1]
+        if (f.lores == initres ||
+            ((x % (f.lores*2) > 0) || (y % (f.lores*2) > 0)
+             &&
+             (f.lores > flyres || f.scale == scaletarget || Math.abs(x/f.w-0.5)<0.25 || Math.abs(y/f.h-0.5)<0.25))) {
+            var x0 = ((x-(f.w-f.sq)/2)/f.sq-0.5)/f.scale + cx
+            var y0 = ((y-(f.h-f.sq)/2)/f.sq-0.5)/f.scale + cy
             var ix = 0
             var iy = 0
             var iteration = 0
@@ -234,48 +287,42 @@ function mandelbrot() {
                 iteration++
             }
             rgba = palette[iteration]
-            for (var py = 0; py < lores; py++) {
-                var i = (((y+py)*mw)+x)*4
-                for (var px = 0; px < lores; px++) {
-                    mpix[i] = rgba[0]
-                    mpix[i+1] = rgba[1]
-                    mpix[i+2] = rgba[2]
-                    mpix[i+3] = rgba[3]
+            for (var py = 0; py < f.lores && y+py < f.h; py++) {
+                var i = (((y+py)*f.w)+x)*4
+                for (var px = 0; px < f.lores && x+px < f.w; px++) {
+                    f.buf[i] = rgba[0]
+                    f.buf[i+1] = rgba[1]
+                    f.buf[i+2] = rgba[2]
+                    f.buf[i+3] = rgba[3]
                     i += 4
                 }
             }
         }
-        x += lores
-        if (x >= mw) {
-            x = 0
-            y += lores
-            if (y >= mh) {
-                y = 0
-                if (lores == 1)
-                    alldone = true
-                else
-                    lores = Math.floor(lores/2)
-            }
-            if (y == 0) {
-                createImageBitmap(new ImageData(mpix, mw), 0, 0, mw, mh, {
-                    resizeWidth: plane.width,
-                    resizeHeight: plane.height,
-                }).then((bitmap) => {
-                    imgdata = bitmap
-                    m.redraw()
-                })
-            }
-        }
+        x += f.lores
+
+        if (x < f.w) return
+        x = 0
+        y += f.lores
+        if (y < f.h) return
+        y = 0
+        f.lores = Math.floor(f.lores/2)
+
+        if (f.scale < scaletarget && f.lores < flyres)
+            frames.push(newframe(Math.min(scaletarget, f.scale * flyfactor)))
+
+        if (frames.length < 2 || f.lores < flyres)
+            createImageBitmap(new ImageData(f.buf, f.w), 0, 0, f.w, f.h, {
+                resizeWidth: plane.width,
+                resizeHeight: plane.height,
+            }).then((img) => {
+                updated = true
+                f.rendertime = performance.now() - f.renderstart
+                f.img = img
+            })
     }
-    var updTimer
     mandelbrot.upd = () => {
-        if (restart) {
-            mandelbrot.zero()
-            restart = false
-        } else if (alldone)
-            return
-        var pts = plane.width*plane.height/initres/initres
-        for (var i=0; (i<pts || lores >= initres) && !alldone; i++)
+        var pts = Math.ceil(plane.width*plane.height/initres)/initres
+        for (var i=0; (i<pts || frames[0].lores == initres) && frames[frames.length-1].lores > 0; i++)
             mandelbrot.plot()
         window.requestAnimationFrame(mandelbrot.upd)
     }
