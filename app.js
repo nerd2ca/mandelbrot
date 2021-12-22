@@ -262,6 +262,7 @@ function mandelbrot() {
         x = 0
         y = 0
         frames = [newframe(scaletarget)]
+        mandelbrot.upd()
     }
     function newframe(scale) {
         var hires = scale < scaletarget ? flyfactor : 1
@@ -336,8 +337,11 @@ function mandelbrot() {
         var pts = Math.ceil(plane.width*plane.height/initres)/initres
         for (var i=0; (i<pts || frames[0].lores == initres) && frames[frames.length-1].lores > 0; i++)
             mandelbrot.plot()
-        window.requestAnimationFrame(mandelbrot.upd)
+    }
+    function updateLoop() {
+        mandelbrot.upd()
+        window.requestAnimationFrame(updateLoop)
     }
     mandelbrot.init()
-    mandelbrot.upd()
+    updateLoop()
 }
