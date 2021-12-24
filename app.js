@@ -4,35 +4,27 @@ var dragging = {x: 0, y: 0}
 var touching = {dx: 0, dy: 0, scale: 1, startx: 0, starty: 0}
 var plane = {width: window.innerWidth, height: window.innerHeight}
 var curhash
-m.mount(document.body, {
-    view: function(body) {
-        return m('canvas', {
-            width: plane.width,
-            height: plane.height,
-            oncreate: (canvas) => {
-                canvas.attrs.draw(canvas)
-            },
-            onupdate: (canvas) => {
-                canvas.attrs.draw(canvas)
-            },
-            draw: (canvas) => {
-                var ctx = canvas.dom.getContext('2d')
-                ctx.fillStyle = '#000'
-                ctx.fillRect(0, 0, plane.width, plane.height)
-                if (onscreen.frame.img) {
-                    ctx.drawImage(
-                        onscreen.frame.img,
-                        (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
-                        (dragging.y+touching.dy) + ((touching.starty)*(1-touching.scale)),
-                        plane.width * touching.scale,
-                        plane.height * touching.scale)
-                }
-                onscreen.ctx = ctx
-            },
-        })
-    },
-})
 mandelbrot()
+setupCanvas()
+function drawFrame() {
+    if (!onscreen.ctx || !onscreen.frame.img) return
+    if (dragging.started)
+        onscreen.ctx.fillRect(0, 0, plane.width, plane.height)
+    onscreen.ctx.drawImage(
+        onscreen.frame.img,
+        (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
+        (dragging.y+touching.dy) + ((touching.starty)*(1-touching.scale)),
+        plane.width * touching.scale,
+        plane.height * touching.scale)
+}
+function setupCanvas() {
+    var canvas = document.getElementsByTagName('canvas')[0]
+    canvas.width = plane.width
+    canvas.height = plane.height
+    onscreen.ctx = canvas.getContext('2d')
+    onscreen.ctx.fillStyle = '#000'
+    drawFrame()
+}
 window.addEventListener('hashchange', () => {
     if (curhash != document.location.hash) {
         mandelbrot.init()
@@ -41,12 +33,12 @@ window.addEventListener('hashchange', () => {
 window.addEventListener("resize", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
-    m.redraw()
+    setupCanvas()
 })
 window.addEventListener("orientationchange", (e) => {
     plane = {width: window.innerWidth, height: window.innerHeight}
     mandelbrot.zero()
-    m.redraw()
+    setupCanvas()
 })
 window.addEventListener("keydown", (e) => {
     if (e.key == 'Shift') shiftDown = true
@@ -103,7 +95,7 @@ function handleTouch(e) {
         touching.dx = 0
         touching.dy = 0
         touching.started = false
-        m.redraw()
+        drawFrame()
         return
     }
     if (e.targetTouches.length > 2)
@@ -138,7 +130,7 @@ function handleTouch(e) {
         touching.ctrx = touching.startx + touching.dx
         touching.ctry = touching.starty + touching.dy
     }
-    m.redraw()
+    drawFrame()
 }
 function mandelbrot() {
     const initres = 8, flyfactor = 2, flyres = 2
@@ -185,16 +177,7 @@ function mandelbrot() {
         }
         if (frames[0].img)
             onscreen.frame = frames[0]
-        if (onscreen.ctx && onscreen.frame.img) {
-            if (dragging.started)
-                onscreen.ctx.fillRect(0, 0, plane.width, plane.height)
-            onscreen.ctx.drawImage(
-                onscreen.frame.img,
-                (dragging.x+touching.dx) + ((touching.startx)*(1-touching.scale)),
-                (dragging.y+touching.dy) + ((touching.starty)*(1-touching.scale)),
-                plane.width * touching.scale,
-                plane.height * touching.scale)
-        }
+        drawFrame()
         window.requestAnimationFrame(animationFrame)
     }
     mandelbrot.more_iterations = (factor) => {
