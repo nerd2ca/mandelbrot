@@ -4,10 +4,12 @@ var fragmentShaderSource = `
 #version 100
 precision highp float;
 uniform float scale;
+uniform vec2 centreIn;
+uniform vec2 centreOut;
+uniform sampler2D palette;
 void main() {
-    float sq = 1200.0;
-    float x0 = (gl_FragCoord.x - sq/2.0) / scale / sq;
-    float y0 = (gl_FragCoord.y - sq/2.0) / scale / sq;
+    float x0 = centreIn.x + (gl_FragCoord.x - centreOut.x) / scale;
+    float y0 = centreIn.y + (gl_FragCoord.y - centreOut.y) / scale;
     float ix = 0.0;
     float iy = 0.0;
     int c = -1;
@@ -27,8 +29,7 @@ void main() {
     }
     if (c < 0)
         c = max_iter;
-    float cc = 1.0 - float(c) / float(max_iter);
-    gl_FragColor = vec4(cc*32.0/255.0, cc*107.0/255.0, cc*203.0/255.0, 1.0);
+    gl_FragColor = texture2D(palette, vec2((float(c)+0.5)/float(max_iter), 0.5));
 }
 `
 
@@ -47,6 +48,8 @@ var gl,
     bufIndices,
     bufVertices,
     bufScale,
+    bufCentreIn,
+    bufCentreOut,
     canvas;
 function setupWebGL (evt) {
     window.removeEventListener(evt.type, setupWebGL, false);
@@ -101,6 +104,8 @@ function setupWebGL (evt) {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
     bufScale = gl.getUniformLocation(program, 'scale')
+    bufCentreIn = gl.getUniformLocation(program, 'centreIn')
+    bufCentreOut = gl.getUniformLocation(program, 'centreOut')
 
     gl.bindBuffer(gl.ARRAY_BUFFER, bufVertices);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufIndices);
@@ -108,17 +113,37 @@ function setupWebGL (evt) {
     var pos = gl.getAttribLocation(program, 'pos');
     gl.vertexAttribPointer(pos, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(pos);
-    gl.viewport(0, 0, canvas.width, canvas.height);
 
-    draw()
+    gl.activeTexture(gl.TEXTURE1)
+    const texture = gl.createTexture()
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+    var palette = []
+    const max_iter = 128
+    update_palette(palette, max_iter)
+    var imgdata = []
+    for (var i=0; i<max_iter; i++)
+        imgdata.push.apply(imgdata, palette[i])
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
+                  max_iter, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+                  new Uint8Array(imgdata));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    var bufPalette = gl.getUniformLocation(program, 'palette')
+    gl.uniform1i(bufPalette, 1)
+
     window.addEventListener('resize', drawDOM)
     window.addEventListener('orientationchange', drawDOM)
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    draw()
 }
 
 var ts0 = null
 function draw(ts) {
     if (!ts0) ts0 = ts
-    gl.uniform1f(bufScale, 0.5*(1+((ts-ts0)%5000)/3000))
+    gl.uniform1f(bufScale, Math.pow(1e6, Math.abs((Math.floor(ts)%40000)/20000-1)) * Math.min(canvas.width, canvas.height)/4)
+    gl.uniform2fv(bufCentreIn, [-0.5946856221566517, -0.43560863385611454])
+    gl.uniform2fv(bufCentreOut, [canvas.width/2, canvas.height/2])
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     window.requestAnimationFrame(draw)
 }
@@ -137,4 +162,31 @@ function cleanup() {
         gl.deleteBuffer(bufIndices);
     if (program)
         gl.deleteProgram(program);
+}
+
+function update_palette(palette, max_iteration) {
+    for (var i=0; i<=max_iteration; i++) {
+        var ii = i/max_iteration
+        var c1 = [-1, 0, 0, 0], c
+        [[0, 0, 7, 100],
+         [0.19, 32, 107, 203],
+         [0.5, 237, 255, 255],
+         [0.77, 255, 170, 0],
+         [1, 0, 2, 0],
+        ].some((c2) => {
+            if (ii > c2[0]) {
+                c1 = c2
+                return false
+            }
+            var d = (ii - c1[0]) / (c2[0] - c1[0])
+            c = [
+                c1[1] + d*(c2[1]-c1[1]),
+                c1[2] + d*(c2[2]-c1[2]),
+                c1[3] + d*(c2[3]-c1[3]),
+                255,
+            ]
+            return true
+        })
+        palette[i] = c
+    }
 }
