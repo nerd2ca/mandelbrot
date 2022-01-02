@@ -135,7 +135,7 @@ var gl,
     canvas;
 function setupWebGL (evt) {
     window.removeEventListener(evt.type, setupWebGL, false);
-    canvas = document.querySelector('canvas');
+    canvas = document.getElementsByTagName('canvas')[0]
     canvas.setAttribute('width', window.innerWidth);
     canvas.setAttribute('height', window.innerHeight);
     gl = canvas.getContext('webgl2');
@@ -216,7 +216,6 @@ function setupWebGL (evt) {
 
     window.addEventListener('resize', drawDOM)
     window.addEventListener('orientationchange', drawDOM)
-    gl.viewport(0, 0, canvas.width, canvas.height);
     draw()
 }
 
@@ -232,6 +231,7 @@ function df64(a, b) {
 var ts0 = null
 function draw(ts) {
     if (!ts0) ts0 = ts
+    gl.viewport(0, 0, canvas.width, canvas.height);
     gl.uniform1f(bufScale, Math.pow(1e13, Math.abs((Math.floor(ts)%40000)/20000-1)) * Math.min(canvas.width, canvas.height)/4)
     gl.uniform4fv(bufCentreIn, df64(-0.5946856221566517, -0.43560863385611454))
     gl.uniform2fv(bufCentreOut, [canvas.width/2, canvas.height/2])
@@ -242,7 +242,6 @@ function draw(ts) {
 function drawDOM() {
     canvas.setAttribute('width', window.innerWidth);
     canvas.setAttribute('height', window.innerHeight);
-    gl.viewport(0, 0, canvas.width, canvas.height);
 }
 
 function cleanup() {
