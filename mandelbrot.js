@@ -7,7 +7,7 @@ var curhash
 mandelbrot()
 setupCanvas()
 function drawFrame() {
-    if (!onscreen.ctx || !onscreen.frame.img) return
+    if (!onscreen.ctx || !onscreen.frame.img || GlRender) return
     if (dragging.started)
         onscreen.ctx.fillRect(0, 0, plane.width, plane.height)
     onscreen.ctx.drawImage(
@@ -18,7 +18,14 @@ function drawFrame() {
         plane.height * touching.scale)
 }
 function setupCanvas() {
-    var canvas = document.getElementsByTagName('canvas')[0]
+    var canvas = document.getElementById('nogl')
+    if (!canvas)
+        return
+    if (GlRender) {
+        canvas.style.display = 'none'
+        return
+    }
+    canvas.style.display = 'block'
     canvas.width = plane.width
     canvas.height = plane.height
     onscreen.ctx = canvas.getContext('2d')
@@ -156,7 +163,25 @@ function mandelbrot() {
         af_id = window.requestAnimationFrame(animationFrame)
         af_t = null
     }
+    function trygl() {
+        if (!GlRender)
+            return false
+        var sq = Math.min(plane.width, plane.height)
+        var x = touching.startx - plane.width/2
+        var y = touching.starty - plane.height/2
+        var rcx = cx + x/sq/scaletarget*(1 - 1/touching.scale)
+        var rcy = cy + y/sq/scaletarget*(1 - 1/touching.scale)
+        var scale = scaletarget * touching.scale
+        rcx -= touching.dx/sq/scale
+        rcy -= touching.dy/sq/scale
+        GlRender(rcx - dragging.x / scaletarget / sq,
+                 rcy - dragging.y / scaletarget / sq,
+                 scale, palette)
+        return true
+    }
     function animationFrame(t) {
+        if (trygl())
+            return window.requestAnimationFrame(animationFrame)
         if (frames.length < 1 || (scaletarget == frames[0].scale && !updated && !dragging.started && !touching.started))
             return window.requestAnimationFrame(animationFrame)
         updated = false
@@ -181,13 +206,13 @@ function mandelbrot() {
         window.requestAnimationFrame(animationFrame)
     }
     mandelbrot.more_iterations = (factor) => {
-        max_iteration = Math.max(16, Math.ceil(max_iteration * factor))
+        max_iteration = Math.min(glMaxIteration, Math.max(16, Math.ceil(max_iteration * factor)))
         update_palette(palette, max_iteration)
         recentre()
         mandelbrot.zero()
     }
     mandelbrot.zoom_n_move = (x, y, magnify, dx, dy) => {
-        var scale = frames.length > 0 ? frames[0].scale : scaletarget
+        var scale = (!GlRender && frames.length > 0) ? frames[0].scale : scaletarget
         var sq = Math.min(plane.width, plane.height)
         if (scale >= 1e13 && magnify > 1) return
         if (scale * magnify < 1/2.47)
@@ -213,7 +238,7 @@ function mandelbrot() {
             window.clearTimeout(updhash)
         updhash = window.setTimeout(() => {
             document.location.hash = curhash
-        }, 1000)
+        }, 250)
     }
     mandelbrot.zero = () => {
         x = 0
@@ -291,6 +316,7 @@ function mandelbrot() {
             })
     }
     mandelbrot.upd = () => {
+        if (GlRender) return
         var pts = Math.ceil(plane.width*plane.height/initres)/initres
         for (var i=0; (i<pts || frames[0].lores == initres) && frames[frames.length-1].lores > 0; i++)
             mandelbrot.plot()
@@ -328,4 +354,5 @@ function update_palette(palette, max_iteration) {
         })
         palette[i] = c
     }
+    palette.splice(max_iteration)
 }
