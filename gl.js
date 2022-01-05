@@ -4,14 +4,14 @@ var fragmentShader64Source = `
 #version 100
 precision highp float;
 uniform int max_iter;
-uniform float scale;
 uniform vec4 centreIn;
 uniform vec2 centreOut;
+uniform float scale;
 uniform sampler2D palette;
 uniform vec4 zero; // hope to prevent compiler from optimizing out double-float ops
 void shade32() {
-    float x0 = centreIn.x + (gl_FragCoord.x - centreOut.x) / scale;
-    float y0 = centreIn.z - (gl_FragCoord.y - centreOut.y) / scale;
+    float x0 = centreIn.x + (gl_FragCoord.x - centreOut.x) * scale;
+    float y0 = centreIn.z - (gl_FragCoord.y - centreOut.y) * scale;
     float ix = 0.0;
     float iy = 0.0;
     int c = -1;
@@ -80,20 +80,12 @@ vec2 df64sq(vec2 a) {
     return quickTwoSum(p.x, p.y);
 }
 void main() {
-    if (gl_FragCoord.y < 4.0) {
-        if (gl_FragCoord.x > centreOut.x*2.0 * log(scale) / log(10.0) / 16.0)
-            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        else
-            gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0);
-        return;
-    }
-    if (scale < 1e5) {
+    if (1.0/scale < 1e5) {
         shade32();
         return;
     }
-    float xscale = 1.0/scale;
-    vec2 x0 = df64add(centreIn.xy, df64mult(vec2(gl_FragCoord.x - centreOut.x, 0.0), vec2(xscale, 0.0)));
-    vec2 y0 = df64add(centreIn.zw, df64mult(vec2(centreOut.y - gl_FragCoord.y, 0.0), vec2(xscale, 0.0)));
+    vec2 x0 = df64add(centreIn.xy, df64mult(vec2(gl_FragCoord.x - centreOut.x, 0.0), vec2(scale, 0.0)));
+    vec2 y0 = df64add(centreIn.zw, df64mult(vec2(centreOut.y - gl_FragCoord.y, 0.0), vec2(scale, 0.0)));
     int c = -1;
     vec4 ixy;
     const int glMaxIteration = `+glMaxIteration+`;
@@ -256,9 +248,9 @@ function glRenderer(canvas) {
         }
         gl.viewport(0, 0, width, height)
         gl.uniform1i(bufMaxIter, palette.length)
-        gl.uniform1f(bufScale, scale * Math.min(width, height))
         gl.uniform4fv(bufCentreIn, df64(cx, cy))
         gl.uniform2fv(bufCentreOut, [width/2, height/2])
+        gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0)
     }
 
