@@ -1,5 +1,3 @@
-"use strict"
-
 const glMaxIteration = 192
 
 var fragmentShader64Source = `
@@ -127,8 +125,7 @@ void main() {
 }
 `
 
-var GlRender = false
-;(function() {
+function glRenderer(canvas) {
     var gl,
         program,
         bufIndices,
@@ -140,10 +137,11 @@ var GlRender = false
         bufCentreOut,
         usingPalette,
         canvas,
+        width,
+        height,
         drawn = {}
-    canvas = document.getElementById('gl')
-    canvas.setAttribute('width', window.innerWidth)
-    canvas.setAttribute('height', window.innerHeight)
+    this.setSize = setSize
+    this.render = render
     gl = canvas.getContext('webgl2')
     if (!gl) return
 
@@ -210,14 +208,7 @@ var GlRender = false
     const texture = gl.createTexture()
     gl.bindTexture(gl.TEXTURE_2D, texture)
 
-    GlRender = draw
-
-    window.addEventListener("resize", resize)
-    window.addEventListener("orientationchange", resize)
-    function resize() {
-        canvas.width = window.innerWidth
-        canvas.height = window.innerHeight
-    }
+    this.ready = true
 
     function df64(a, b) {
         const splitter = (1<<29)+1
@@ -228,19 +219,26 @@ var GlRender = false
         return [ahi, a-ahi, bhi, b-bhi]
     }
 
-    function draw(cx, cy, scale, palette) {
+    function setSize(w, h) {
+        width = w
+        height = h
+    }
+
+    function render(cx, cy, scale, palette) {
+        if (!gl)
+            return
         if (drawn.cx == cx &&
             drawn.cy == cy &&
             drawn.scale == scale &&
-            drawn.width == canvas.width &&
-            drawn.height == canvas.height &&
+            drawn.width == width &&
+            drawn.height == height &&
             drawn.palette == palette.length)
             return
         drawn.cx = cx
         drawn.cy = cy
         drawn.scale = scale
-        drawn.width = canvas.width
-        drawn.height = canvas.height
+        drawn.width = width
+        drawn.height = height
         if (drawn.palette !== palette.length) {
             drawn.palette = palette.length
             var psize
@@ -256,11 +254,11 @@ var GlRender = false
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
             gl.uniform1i(bufPalette, 1)
         }
-        gl.viewport(0, 0, canvas.width, canvas.height)
+        gl.viewport(0, 0, width, height)
         gl.uniform1i(bufMaxIter, palette.length)
-        gl.uniform1f(bufScale, scale * Math.min(canvas.width, canvas.height))
+        gl.uniform1f(bufScale, scale * Math.min(width, height))
         gl.uniform4fv(bufCentreIn, df64(cx, cy))
-        gl.uniform2fv(bufCentreOut, [canvas.width/2, canvas.height/2])
+        gl.uniform2fv(bufCentreOut, [width/2, height/2])
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0)
     }
 
@@ -273,4 +271,4 @@ var GlRender = false
         if (program)
             gl.deleteProgram(program)
     }
-})()
+}
