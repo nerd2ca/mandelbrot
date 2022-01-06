@@ -83,6 +83,15 @@ function display(renderers) {
         }
     }
     this.setTarget = (cx, cy, scale, maxiter, seconds) => {
+        if (cx < -2) cx = -2
+        if (cx > 2) cx = 2
+        if (cy < -2) cy = -2
+        if (cy > 2) cy = 2
+        if (scale < 0.25 || scale > 1e12) {
+            scale = Math.max(Math.min(scale, 1e12), 0.25)
+            cx = target.cx || cx
+            cy = target.cy || cy
+        }
         target.cx = cx
         target.cy = cy
         target.scale = scale
