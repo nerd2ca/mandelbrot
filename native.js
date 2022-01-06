@@ -1,6 +1,6 @@
 function nativeRenderer() {
     this.setSize = () => {}
-    this.render = () => {}
+    this.render = () => { return Promise.resolve(1) }
     this.ready = false
     return
 

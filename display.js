@@ -25,6 +25,7 @@ function display(renderers) {
         af_id = null
         update_palette(palette, target.maxiter)
         var done = null
+        var promise
         renderers.forEach(r => {
             if (done || !r.instance.ready) {
                 if (rendering == r)
@@ -33,11 +34,16 @@ function display(renderers) {
             }
             if (rendering != r)
                 r.canvas.style.display = 'block'
-            r.instance.render(target.cx, target.cy, target.scale, palette)
+            promise = r.instance.render(target.cx, target.cy, target.scale, palette)
             done = r
         })
         rendering = done
-        af_id = window.requestAnimationFrame(draw)
+        if (!promise) promise = Promise.reject('no renderer ready')
+        promise.then(res => {
+            af_id = window.requestAnimationFrame(draw)
+        }).catch(e => {
+            af_id = window.requestAnimationFrame(draw)
+        })
     }
 
     function resize() {

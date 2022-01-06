@@ -131,7 +131,8 @@ function glRenderer(canvas) {
         canvas,
         width,
         height,
-        drawn = {}
+        drawn = {},
+        fenceSync
     this.setSize = setSize
     this.render = render
     gl = canvas.getContext('webgl2')
@@ -217,15 +218,19 @@ function glRenderer(canvas) {
     }
 
     function render(cx, cy, scale, palette) {
-        if (!gl)
-            return
+        if (!gl) {
+            this.ready = false
+            return Promise.reject('not ready')
+        }
+        if (fenceSync && gl.clientWaitSync(fenceSync, 0, 0) != gl.ALREADY_SIGNALED)
+            return Promise.resolve(2)
         if (drawn.cx == cx &&
             drawn.cy == cy &&
             drawn.scale == scale &&
             drawn.width == width &&
             drawn.height == height &&
             drawn.palette == palette.length)
-            return
+            return Promise.resolve(1)
         drawn.cx = cx
         drawn.cy = cy
         drawn.scale = scale
@@ -252,6 +257,8 @@ function glRenderer(canvas) {
         gl.uniform2fv(bufCentreOut, [width/2, height/2])
         gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0)
+        fenceSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
+        return Promise.resolve(1)
     }
 
     function cleanup() {
