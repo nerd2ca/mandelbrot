@@ -1,34 +1,45 @@
 function display(renderers) {
-    var target = {
-        cx: 0,
-        cy: 0,
-        scale: 1,
-        maxiter: 2,
-    }
-    var af_id, w, h, palette = []
-    function start() {
-        if (!af_id)
-            af_id = window.requestAnimationFrame(draw)
-    }
-    function stop() {
-        if (af_id)
-            window.cancelAnimationFrame(af_id)
-    }
+    var af_id,
+        w,
+        h,
+        palette = [],
+        target = {
+            cx: 0,
+            cy: 0,
+            scale: 1,
+            maxiter: 2,
+        },
+        rendering
+    this.currentTarget = currentTarget
+    this.setTarget = setTarget
+    renderers.forEach(r => {
+        r.instance = new r.ctor(r.canvas)
+        r.canvas.style.display = 'none'
+    })
+    window.addEventListener('resize', resize)
+    window.addEventListener('orientationchange', resize)
+    resize()
+    draw()
+
     function draw() {
         af_id = null
         update_palette(palette, target.maxiter)
-        var done = false
+        var done = null
         renderers.forEach(r => {
             if (done || !r.instance.ready) {
-                r.canvas.style.display = 'none'
+                if (rendering == r)
+                    r.canvas.style.display = 'none'
                 return
             }
-            r.canvas.style.display = 'block'
+            if (rendering != r)
+                r.canvas.style.display = 'block'
             r.instance.render(target.cx, target.cy, target.scale, palette)
-            done = true
+            done = r
         })
+        rendering = done
         af_id = window.requestAnimationFrame(draw)
     }
+
     function resize() {
         var rw = window.innerWidth,
             rh = window.innerHeight
@@ -42,6 +53,7 @@ function display(renderers) {
         })
         target.pixscale = target.scale * Math.min(w, h)
     }
+
     function update_palette(palette, maxiter) {
         if (palette.length == maxiter) return
         for (var i=0; i<=maxiter; i++) {
@@ -70,10 +82,8 @@ function display(renderers) {
         }
         palette.splice(maxiter)
     }
-    ['resize', 'orientationchange'].forEach(et => {
-        window.addEventListener(et, resize)
-    })
-    this.currentTarget = () => {
+
+    function currentTarget() {
         return {
             cx: target.cx,
             cy: target.cy,
@@ -82,7 +92,8 @@ function display(renderers) {
             maxiter: target.maxiter,
         }
     }
-    this.setTarget = (cx, cy, scale, maxiter, seconds) => {
+
+    function setTarget(cx, cy, scale, maxiter, seconds) {
         if (cx < -2) cx = -2
         if (cx > 2) cx = 2
         if (cy < -2) cy = -2
@@ -98,9 +109,4 @@ function display(renderers) {
         target.pixscale = scale * Math.min(w, h)
         target.maxiter = maxiter
     }
-    renderers.forEach(r => {
-        r.instance = new r.ctor(r.canvas)
-    })
-    resize()
-    start()
 }
