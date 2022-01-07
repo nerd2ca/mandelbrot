@@ -8,12 +8,21 @@ function display(renderers) {
             cy: 0,
             scale: 1,
             maxiter: 2,
+            t1: -1,
+        },
+        view = {
+            cx: 0,
+            cy: 0,
+            scale: 1,
+            maxiter: 2,
         },
         rendering
     this.currentTarget = currentTarget
+    this.currentView = currentView
     this.setTarget = setTarget
     renderers.forEach(r => {
         r.instance = new r.ctor(r.canvas)
+        r.renderTime = []
         r.canvas.style.display = 'none'
     })
     window.addEventListener('resize', resize)
@@ -22,10 +31,30 @@ function display(renderers) {
     draw()
 
     function draw() {
+        if (!af_id)
+            af_id = window.requestAnimationFrame(_draw)
+    }
+
+    function _draw() {
         af_id = null
-        update_palette(palette, target.maxiter)
+        var now = performance.now()
+        if (now >= target.t1) {
+            view.scale = target.scale
+            af_want = false
+        } else {
+            view.scale = target.scale0 * Math.pow(target.scale/target.scale0, (now-target.t0)/(target.t1-target.t0))
+            af_want = true
+        }
+        if (rendering) {
+            // todo: rescale existing frame
+            af_id = window.requestAnimationFrame(_draw)
+            return
+        }
+        view.pixscale = view.scale * Math.min(w, h)
+        update_palette(palette, view.maxiter)
         var done = null
         var promise
+        var t0 = performance.now()
         renderers.forEach(r => {
             if (done || !r.instance.ready) {
                 if (rendering == r)
@@ -34,16 +63,19 @@ function display(renderers) {
             }
             if (rendering != r)
                 r.canvas.style.display = 'block'
-            promise = r.instance.render(target.cx, target.cy, target.scale, palette)
+            promise = r.instance.render(view.cx, view.cy, view.scale, palette)
             done = r
         })
         rendering = done
         if (!promise) promise = Promise.reject('no renderer ready')
-        promise.then(res => {
-            af_id = window.requestAnimationFrame(draw)
-        }).catch(e => {
-            af_id = window.requestAnimationFrame(draw)
-        })
+        promise.then(resolution => {
+            rendering.renderTime[resolution] = performance.now() - t0
+            rendering = null
+        }).catch(err => {
+            console.log(err)
+        });
+        if (view.scale != target.scale)
+            af_id = window.requestAnimationFrame(_draw)
     }
 
     function resize() {
@@ -58,6 +90,7 @@ function display(renderers) {
             r.canvas.height = h
         })
         target.pixscale = target.scale * Math.min(w, h)
+        draw()
     }
 
     function update_palette(palette, maxiter) {
@@ -99,6 +132,16 @@ function display(renderers) {
         }
     }
 
+    function currentView() {
+        return {
+            cx: view.cx,
+            cy: view.cy,
+            scale: view.scale,
+            pixscale: view.scale * Math.min(w, h),
+            maxiter: view.maxiter,
+        }
+    }
+
     function setTarget(cx, cy, scale, maxiter, seconds) {
         if (cx < -2) cx = -2
         if (cx > 2) cx = 2
@@ -114,5 +157,15 @@ function display(renderers) {
         target.scale = scale
         target.pixscale = scale * Math.min(w, h)
         target.maxiter = maxiter
+        view.cx = cx
+        view.cy = cy
+        view.maxiter = maxiter
+        if (seconds) {
+            target.t0 = performance.now()
+            target.t1 = performance.now() + seconds*1000
+            target.scale0 = view.scale
+        } else
+            target.t1 = -1
+        draw()
     }
 }

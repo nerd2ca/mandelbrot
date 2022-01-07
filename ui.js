@@ -18,7 +18,7 @@ function ui(display) {
             scale = parseFloat(params[2]) || 1,
             maxiter = parseInt(params[3]) || 128
         setTarget(cx, cy, scale, maxiter, 0)
-        setTarget(cx, cy, scale, maxiter, 2*Math.log(scale)/Math.log(2))
+        setTarget(cx, cy, scale, maxiter, 0.5*Math.log(scale)/Math.log(2))
     }
 
     // show current coordinates in location bar
@@ -40,7 +40,7 @@ function ui(display) {
     })
     window.addEventListener('mousedown', e => {
         dragging = {lastX: e.clientX, lastY: e.clientY}
-        var cur = display.currentCamera()
+        var cur = display.currentView()
         display.setTarget(cur.cx, cur.cy, cur.scale, cur.maxiter)
     })
     window.addEventListener('mousemove', e => {
@@ -48,7 +48,7 @@ function ui(display) {
             dragging = null
             return
         }
-        var cur = display.currentTarget()
+        var cur = display.currentView()
         setTarget(cur.cx - (e.clientX - dragging.lastX)/cur.pixscale,
                   cur.cy - (e.clientY - dragging.lastY)/cur.pixscale,
                   cur.scale,
@@ -61,7 +61,7 @@ function ui(display) {
     window.addEventListener('wheel', handleWheel, {passive: false})
     function handleWheel(e) {
         e.preventDefault()
-        var cur = display.currentTarget()
+        var cur = display.currentView()
         if (e.ctrlKey) {
             setTarget(cur.cx,
                       cur.cy,
@@ -113,7 +113,7 @@ function ui(display) {
 
         var magx = x - e.target.clientWidth/2,
             magy = y - e.target.clientHeight/2
-        var cur = display.currentTarget()
+        var cur = display.currentView()
         setTarget(cur.cx - dx/cur.pixscale + magx/cur.pixscale*(1-1/mag),
                   cur.cy - dy/cur.pixscale + magy/cur.pixscale*(1-1/mag),
                   cur.scale*mag,
