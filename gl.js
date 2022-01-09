@@ -258,7 +258,18 @@ function glRenderer(canvas) {
         gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0)
         fenceSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
-        return Promise.resolve(1)
+        return new Promise((res, rej) => {
+            check()
+            function check() {
+                const w = gl.clientWaitSync(fenceSync, 0, 0)
+                if (w == gl.CONDITION_SATISFIED || w == gl.ALREADY_SIGNALED)
+                    res(1)
+                else if (w == gl.TIMEOUT_EXPIRED)
+                    window.requestAnimationFrame(check)
+                else
+                    rej(w)
+            }
+        })
     }
 
     function cleanup() {

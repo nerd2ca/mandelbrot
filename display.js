@@ -37,20 +37,23 @@ function display(renderers) {
 
     function _draw() {
         af_id = null
+        var newview = {
+            cx: target.cx,
+            cy: target.cy,
+            maxiter: target.maxiter,
+        }
         var now = performance.now()
         if (now >= target.t1) {
-            view.scale = target.scale
-            af_want = false
+            newview.scale = target.scale
         } else {
-            view.scale = target.scale0 * Math.pow(target.scale/target.scale0, (now-target.t0)/(target.t1-target.t0))
-            af_want = true
+            newview.scale = target.scale0 * Math.pow(target.scale/target.scale0, (now-target.t0)/(target.t1-target.t0))
         }
+        newview.pixscale = view.scale * Math.min(w, h)
         if (rendering) {
             // todo: rescale existing frame
             af_id = window.requestAnimationFrame(_draw)
             return
         }
-        view.pixscale = view.scale * Math.min(w, h)
         update_palette(palette, view.maxiter)
         var done = null
         var promise
@@ -63,18 +66,22 @@ function display(renderers) {
             }
             if (rendering != r)
                 r.canvas.style.display = 'block'
-            promise = r.instance.render(view.cx, view.cy, view.scale, palette)
+            promise = r.instance.render(newview.cx, newview.cy, newview.scale, palette)
             done = r
         })
         rendering = done
         if (!promise) promise = Promise.reject('no renderer ready')
         promise.then(resolution => {
+            view = newview
             rendering.renderTime[resolution] = performance.now() - t0
             rendering = null
+            if (view.scale != target.scale && !af_id)
+                af_id = window.requestAnimationFrame(_draw)
         }).catch(err => {
+            rendering = null
             console.log(err)
         });
-        if (view.scale != target.scale)
+        if (newview.scale != target.scale)
             af_id = window.requestAnimationFrame(_draw)
     }
 
