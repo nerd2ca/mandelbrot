@@ -1,4 +1,5 @@
 const glMaxIteration = 192
+const wantfb = false
 
 var fragmentShader64Source = `
 #version 100
@@ -132,11 +133,21 @@ function glRenderer(canvas) {
         width,
         height,
         drawn = {},
+        drawing = {},
         fenceSync
     this.setSize = setSize
     this.render = render
-    gl = canvas.getContext('webgl2')
+    this.renderFinished = renderFinished
+    this.rerender = rerender
+    gl = canvas.getContext('webgl2', {antialias: false})
     if (!gl) return
+
+    if (wantfb) {
+        drawn.fb = gl.createFramebuffer()
+        drawn.tex = gl.createTexture()
+        drawing.fb = gl.createFramebuffer()
+        drawing.tex = gl.createTexture()
+    }
 
     var vertexShader = gl.createShader(gl.VERTEX_SHADER)
     gl.shaderSource(vertexShader,vertexShaderSource)
@@ -217,27 +228,61 @@ function glRenderer(canvas) {
         height = h
     }
 
+    function rerender(scale) {
+        if (drawn.width !== width || drawn.height !== height) return
+        if (wantfb) {
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, drawn.fb)
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
+            var mag = scale / drawn.scale
+            var sw = drawn.width / mag
+            var sh = drawn.height / mag
+            gl.blitFramebuffer((drawn.width-sw)/2, (drawn.height-sh)/2, sw, sh,
+                               0, 0, drawn.width, drawn.height,
+                               gl.COLOR_BUFFER_BIT, gl.LINEAR)
+        }
+    }
+
+    function renderFinished() {
+        if (fenceSync && gl && gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
+            return false
+        fenceSync = null
+        return true
+    }
+
     function render(cx, cy, scale, palette) {
         if (!gl) {
             this.ready = false
-            return Promise.reject('not ready')
+            return
         }
-        if (fenceSync && gl.clientWaitSync(fenceSync, 0, 0) != gl.ALREADY_SIGNALED)
-            return Promise.resolve(2)
+        if (fenceSync) {
+            if (gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
+                return
+            fenceSync = null
+            drawn.cx = drawing.cx
+            drawn.cy = drawing.cy
+            drawn.scale = drawing.scale
+            drawn.width = drawing.width
+            drawn.height = drawing.height
+            drawn.palette = drawing.palette
+
+            const fb = drawn.fb
+            drawn.fb = drawing.fb
+            drawing.fb = fb
+        }
         if (drawn.cx == cx &&
             drawn.cy == cy &&
             drawn.scale == scale &&
             drawn.width == width &&
             drawn.height == height &&
             drawn.palette == palette.length)
-            return Promise.resolve(1)
-        drawn.cx = cx
-        drawn.cy = cy
-        drawn.scale = scale
-        drawn.width = width
-        drawn.height = height
-        if (drawn.palette !== palette.length) {
-            drawn.palette = palette.length
+            return
+        drawing.cx = cx
+        drawing.cy = cy
+        drawing.scale = scale
+        drawing.width = width
+        drawing.height = height
+        if (drawing.palette !== palette.length) {
+            drawing.palette = palette.length
             var psize
             for (psize = 1; psize < palette.length; psize = psize << 1) {}
             var imgdata = []
@@ -251,25 +296,38 @@ function glRenderer(canvas) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
             gl.uniform1i(bufPalette, 1)
         }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, width, height)
         gl.uniform1i(bufMaxIter, palette.length)
         gl.uniform4fv(bufCentreIn, df64(cx, cy))
         gl.uniform2fv(bufCentreOut, [width/2, height/2])
         gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0)
+
+        if (wantfb) {
+            gl.activeTexture(gl.TEXTURE2)
+            gl.bindTexture(gl.TEXTURE_2D, drawing.tex)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
+                          drawing.width, drawing.height, 0,
+                          gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, drawing.fb)
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, drawing.tex, 0)
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, drawing.fb)
+            gl.blitFramebuffer(0, 0, drawing.width, drawing.height,
+                               0, 0, drawing.width, drawing.height,
+                               gl.COLOR_BUFFER_BIT, gl.LINEAR)
+        }
         fenceSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
-        return new Promise((res, rej) => {
-            check()
-            function check() {
-                const w = gl.clientWaitSync(fenceSync, 0, 0)
-                if (w == gl.CONDITION_SATISFIED || w == gl.ALREADY_SIGNALED)
-                    res(1)
-                else if (w == gl.TIMEOUT_EXPIRED)
-                    window.requestAnimationFrame(check)
-                else
-                    rej(w)
-            }
-        })
+    }
+
+    function renderFinished() {
+        if (!fenceSync)
+            return 1
+        if (gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
+            return false
+        fenceSync = null
+        return 1
     }
 
     function cleanup() {
