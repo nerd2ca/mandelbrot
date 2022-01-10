@@ -9,15 +9,21 @@ uniform vec4 centreIn;
 uniform vec2 centreOut;
 uniform float scale;
 uniform sampler2D palette;
+uniform int psize;
 uniform vec4 zero; // hope to prevent compiler from optimizing out double-float ops
+void pick(int c) {
+    if (c < 0 || c >= max_iter)
+        c = max_iter-1;
+    gl_FragColor = texture2D(palette, vec2(float(c)/float(psize), 0.5));
+}
 void shade32() {
     float x0 = centreIn.x + (gl_FragCoord.x - centreOut.x) * scale;
     float y0 = centreIn.z - (gl_FragCoord.y - centreOut.y) * scale;
     float ix = 0.0;
     float iy = 0.0;
     int c = -1;
-    const int glMaxIteration = `+glMaxIteration+`;
-    for (int iter = 0; iter < glMaxIteration; iter++) {
+    const int iterlimit = glMaxIteration;
+    for (int iter = 0; iter < iterlimit; iter++) {
         if (c >= 0 || iter >= max_iter)
             continue;
         float ix2 = ix*ix;
@@ -30,9 +36,7 @@ void shade32() {
         iy = 2.0 * ix * iy + y0;
         ix = xnext;
     }
-    if (c < 0)
-        c = max_iter;
-    gl_FragColor = texture2D(palette, vec2((float(c)+0.5)/float(max_iter), 0.5));
+    pick(c);
 }
 // http://andrewthall.org/papers/df64_qf128.pdf
 vec2 quickTwoSum(float a , float b) {
@@ -89,8 +93,8 @@ void main() {
     vec2 y0 = df64add(centreIn.zw, df64mult(vec2(centreOut.y - gl_FragCoord.y, 0.0), vec2(scale, 0.0)));
     int c = -1;
     vec4 ixy;
-    const int glMaxIteration = `+glMaxIteration+`;
-    for (int iter = 0; iter < glMaxIteration; iter++) {
+    const int iterlimit = glMaxIteration;
+    for (int iter = 0; iter < iterlimit; iter++) {
         if (c >= 0 || iter >= max_iter)
             continue;
         vec4 sq = vec4(df64sq(ixy.xy), df64sq(ixy.zw));
@@ -103,9 +107,7 @@ void main() {
             df64add(x0, df64add(sq.xy, -1.0 * sq.zw)),
             df64add(y0, 2.0 * df64mult(ixy.xy, ixy.zw)));
     }
-    if (c < 0)
-        c = max_iter;
-    gl_FragColor = texture2D(palette, vec2((float(c)+0.5)/float(max_iter), 0.5));
+    pick(c);
 }
 `
 
@@ -121,8 +123,10 @@ void main() {
 function glRenderer(canvas) {
     var gl,
         program,
+        programMaxIteration,
         bufIndices,
         bufVertices,
+        bufPaletteSize,
         bufMaxIter,
         bufScale,
         bufPalette,
@@ -149,68 +153,7 @@ function glRenderer(canvas) {
         drawing.tex = gl.createTexture()
     }
 
-    var vertexShader = gl.createShader(gl.VERTEX_SHADER)
-    gl.shaderSource(vertexShader,vertexShaderSource)
-    gl.compileShader(vertexShader)
-    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS))
-        console.log(gl.getShaderInfoLog(vertexShader))
-
-    var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
-    gl.shaderSource(fragmentShader,fragmentShader64Source)
-    gl.compileShader(fragmentShader)
-    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS))
-        console.log(gl.getShaderInfoLog(fragmentShader))
-
-    program = gl.createProgram()
-    gl.attachShader(program, vertexShader)
-    gl.attachShader(program, fragmentShader)
-    gl.linkProgram(program)
-    gl.detachShader(program, vertexShader)
-    gl.detachShader(program, fragmentShader)
-    gl.deleteShader(vertexShader)
-    gl.deleteShader(fragmentShader)
-
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        var err = gl.getProgramInfoLog(program)
-        cleanup()
-        console.log("link error: " + err)
-        return
-    }
-    gl.useProgram(program)
-
-    bufVertices = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufVertices)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        0-1, -1, 0,
-        0-1, 1, 0,
-        1, 1, 0,
-        0-1, -1, 0,
-        1, 1, 0,
-        1, -1, 0,
-    ]), gl.STATIC_DRAW)
-    gl.bindBuffer(gl.ARRAY_BUFFER, null)
-
-    bufIndices = gl.createBuffer()
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufIndices)
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1,2,3,4,5]), gl.STATIC_DRAW)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
-
-    bufMaxIter = gl.getUniformLocation(program, 'max_iter')
-    bufScale = gl.getUniformLocation(program, 'scale')
-    bufCentreIn = gl.getUniformLocation(program, 'centreIn')
-    bufCentreOut = gl.getUniformLocation(program, 'centreOut')
-    bufPalette = gl.getUniformLocation(program, 'palette')
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufVertices)
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufIndices)
-
-    var pos = gl.getAttribLocation(program, 'pos')
-    gl.vertexAttribPointer(pos, 3, gl.FLOAT, false, 0, 0)
-    gl.enableVertexAttribArray(pos)
-
-    gl.activeTexture(gl.TEXTURE1)
-    const texture = gl.createTexture()
-    gl.bindTexture(gl.TEXTURE_2D, texture)
+    setupProgram(128)
 
     this.ready = true
 
@@ -281,13 +224,17 @@ function glRenderer(canvas) {
         drawing.scale = scale
         drawing.width = width
         drawing.height = height
+        var psize
+        for (psize=1; psize<palette.length; psize=psize*2) {}
         if (drawing.palette !== palette.length) {
+            if (palette.length*1.2 < programMaxIteration || palette.length > programMaxIteration)
+                setupProgram(Math.ceil(palette.length*1.1))
             drawing.palette = palette.length
-            var psize
-            for (psize = 1; psize < palette.length; psize = psize << 1) {}
             var imgdata = []
-            for (var i=0; i<psize; i++)
-                imgdata.push.apply(imgdata, palette[i >= palette.length ? palette.length-1 : i])
+            for (var i=0; i<palette.length; i++)
+                imgdata.push.apply(imgdata, palette[i])
+            for (var i=palette.length; i<psize; i++)
+                imgdata.push.apply(imgdata, palette[palette.length-1])
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA,
                           psize, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
                           new Uint8Array(imgdata))
@@ -299,6 +246,7 @@ function glRenderer(canvas) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, width, height)
         gl.uniform1i(bufMaxIter, palette.length)
+        gl.uniform1i(bufPaletteSize, psize)
         gl.uniform4fv(bufCentreIn, df64(cx, cy))
         gl.uniform2fv(bufCentreOut, [width/2, height/2])
         gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
@@ -321,13 +269,73 @@ function glRenderer(canvas) {
         fenceSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)
     }
 
-    function renderFinished() {
-        if (!fenceSync)
-            return 1
-        if (gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
-            return false
-        fenceSync = null
-        return 1
+    function setupProgram(maxiter) {
+        cleanup()
+
+        var vertexShader = gl.createShader(gl.VERTEX_SHADER)
+        gl.shaderSource(vertexShader, vertexShaderSource)
+        gl.compileShader(vertexShader)
+        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS))
+            console.log(gl.getShaderInfoLog(vertexShader))
+
+        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER)
+        gl.shaderSource(fragmentShader,fragmentShader64Source.replaceAll('glMaxIteration', maxiter))
+        gl.compileShader(fragmentShader)
+        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS))
+            console.log(gl.getShaderInfoLog(fragmentShader))
+
+        programMaxIteration = maxiter
+        program = gl.createProgram()
+        gl.attachShader(program, vertexShader)
+        gl.attachShader(program, fragmentShader)
+        gl.linkProgram(program)
+        gl.detachShader(program, vertexShader)
+        gl.detachShader(program, fragmentShader)
+        gl.deleteShader(vertexShader)
+        gl.deleteShader(fragmentShader)
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            var err = gl.getProgramInfoLog(program)
+            cleanup()
+            console.log("link error: " + err)
+            return
+        }
+        gl.useProgram(program)
+
+        bufVertices = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, bufVertices)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            0-1, -1, 0,
+            0-1, 1, 0,
+            1, 1, 0,
+            0-1, -1, 0,
+            1, 1, 0,
+            1, -1, 0,
+        ]), gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
+
+        bufIndices = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufIndices)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1,2,3,4,5]), gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+
+        bufPaletteSize = gl.getUniformLocation(program, 'psize')
+        bufMaxIter = gl.getUniformLocation(program, 'max_iter')
+        bufScale = gl.getUniformLocation(program, 'scale')
+        bufCentreIn = gl.getUniformLocation(program, 'centreIn')
+        bufCentreOut = gl.getUniformLocation(program, 'centreOut')
+        bufPalette = gl.getUniformLocation(program, 'palette')
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, bufVertices)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufIndices)
+
+        var pos = gl.getAttribLocation(program, 'pos')
+        gl.vertexAttribPointer(pos, 3, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(pos)
+
+        gl.activeTexture(gl.TEXTURE1)
+        const texture = gl.createTexture()
+        gl.bindTexture(gl.TEXTURE_2D, texture)
     }
 
     function cleanup() {
