@@ -143,18 +143,30 @@ function glRenderer(canvas) {
     this.render = render
     this.renderFinished = renderFinished
     this.rerender = rerender
-    gl = canvas.getContext('webgl2', {antialias: false})
-    if (!gl) return
 
-    if (wantfb) {
-        drawn.fb = gl.createFramebuffer()
-        drawn.tex = gl.createTexture()
-        drawing.fb = gl.createFramebuffer()
-        drawing.tex = gl.createTexture()
+    canvas.addEventListener("webglcontextlost", ev => {
+        ev.preventDefault()
+        drawing.palette = false
+        this.ready = false
+    })
+    canvas.addEventListener("webglcontextrestored", ev => {
+        setupProgram(128)
+        this.ready = true
+    })
+
+    if (document.location.toString().indexOf('chaosmonkey') >= 0) {
+        var chaosmonkey = 1, ctxext
+        window.setInterval(_ => {
+            if (!ctxext)
+                ctxext = gl.getExtension('WEBGL_lose_context')
+            if (chaosmonkey % 2 == 1)
+                ctxext.loseContext()
+            else
+                ctxext.restoreContext();
+            chaosmonkey++
+        }, 2000)
     }
-
     setupProgram(128)
-
     this.ready = true
 
     function df64(a, b) {
@@ -193,9 +205,10 @@ function glRenderer(canvas) {
     }
 
     function render(cx, cy, scale, palette) {
-        if (!gl) {
+        if (gl.isContextLost()) {
+            drawing.palette = false
             this.ready = false
-            return
+            return false
         }
         if (fenceSync) {
             if (gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
@@ -208,9 +221,11 @@ function glRenderer(canvas) {
             drawn.height = drawing.height
             drawn.palette = drawing.palette
 
-            const fb = drawn.fb
-            drawn.fb = drawing.fb
-            drawing.fb = fb
+            if (wantfb) {
+                const fb = drawn.fb
+                drawn.fb = drawing.fb
+                drawing.fb = fb
+            }
         }
         if (drawn.cx == cx &&
             drawn.cy == cy &&
@@ -270,7 +285,15 @@ function glRenderer(canvas) {
     }
 
     function setupProgram(maxiter) {
-        cleanup()
+        if (!gl) gl = canvas.getContext('webgl2', {antialias: false})
+        if (!gl) return
+
+        if (wantfb) {
+            drawn.fb = gl.createFramebuffer()
+            drawn.tex = gl.createTexture()
+            drawing.fb = gl.createFramebuffer()
+            drawing.tex = gl.createTexture()
+        }
 
         var vertexShader = gl.createShader(gl.VERTEX_SHADER)
         gl.shaderSource(vertexShader, vertexShaderSource)
@@ -339,6 +362,8 @@ function glRenderer(canvas) {
     }
 
     function cleanup() {
+        if (!gl)
+            return
         gl.useProgram(null)
         if (bufVertices)
             gl.deleteBuffer(bufVertices)
@@ -346,5 +371,7 @@ function glRenderer(canvas) {
             gl.deleteBuffer(bufIndices)
         if (program)
             gl.deleteProgram(program)
+        drawing.palette = null
+        this.ready = false
     }
 }
