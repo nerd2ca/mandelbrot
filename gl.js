@@ -154,6 +154,9 @@ function glRenderer(canvas) {
         this.ready = true
     })
 
+    if (document.location.toString().indexOf('nogl') >= 0) {
+        return
+    }
     if (document.location.toString().indexOf('chaosmonkey') >= 0) {
         var chaosmonkey = 1, ctxext
         window.setInterval(_ => {
