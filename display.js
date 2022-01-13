@@ -16,14 +16,13 @@ function display(renderers) {
             scale: 1,
             maxiter: 2,
         },
-        inuse,
         pendingView,
         lastFrameTime
     this.currentTarget = currentTarget
     this.currentView = currentView
     this.setTarget = setTarget
     renderers.forEach(r => {
-        r.instance = new r.ctor(r.canvas)
+        r.instance = new r.ctor(r.canvas, draw)
         r.canvas.style.display = 'none'
     })
     window.addEventListener('resize', resize)
@@ -39,6 +38,8 @@ function display(renderers) {
     function _draw(now) {
         af_id = null
         var newview = {
+            w: w,
+            h: h,
             cx: target.cx,
             cy: target.cy,
             maxiter: target.maxiter,
@@ -49,14 +50,23 @@ function display(renderers) {
             newview.scale = target.scale0 * Math.pow(target.scale/target.scale0, (now-target.t0)/(target.t1-target.t0))
         }
         newview.pixscale = view.scale * Math.min(w, h)
-        if (pendingView && inuse && inuse.instance.renderFinished()) {
+        if (pendingView && pendingView.renderer && pendingView.renderer.instance.renderShown()) {
             view = pendingView
             lastFrameTime = now - pendingView.renderStart
             pendingView = null
+            if (view.renderer.ready &&
+                view.w == newview.w &&
+                view.h == newview.h &&
+                view.cx == target.cx &&
+                view.cy == target.cy &&
+                view.scale == target.scale &&
+                view.maxiter == target.maxiter &&
+                view.renderer.instance.renderFinished())
+                return
         }
         if (pendingView) {
             if (lastFrameTime && newview.scale < pendingView.scale && newview.cx == pendingView.cx && newview.cy == pendingView.cy) {
-                inuse.instance.rerender(
+                view.renderer.instance.rerender(
                     Math.min(
                         pendingView.scale,
                         Math.pow(
@@ -66,22 +76,20 @@ function display(renderers) {
             af_id = window.requestAnimationFrame(_draw)
             return
         }
-        update_palette(palette, view.maxiter)
-        var done = null
         renderers.forEach(r => {
-            if (done || !r.instance.ready) {
-                if (inuse == r)
+            if (newview.renderer || !r.instance.ready) {
+                if (view.renderer == r)
                     r.canvas.style.display = 'none'
                 return
             }
-            if (inuse != r)
+            if (view.renderer != r)
                 r.canvas.style.display = 'block'
-            r.instance.render(newview.cx, newview.cy, newview.scale, palette)
-            pendingView = newview
-            pendingView.renderStart = now
-            done = r
+            newview.renderer = r
         })
-        inuse = done
+        newview.renderStart = now
+        update_palette(palette, newview.maxiter)
+        newview.renderer.instance.render(newview.cx, newview.cy, newview.scale, palette)
+        pendingView = newview
         af_id = window.requestAnimationFrame(_draw)
     }
 

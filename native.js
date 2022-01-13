@@ -1,8 +1,9 @@
-function nativeRenderer(canvas) {
+function nativeRenderer(canvas, redraw) {
     const initres = 4, flyres = 1, maxfps = 90
 
     this.setSize = setSize
     this.render = render
+    this.renderShown = renderShown
     this.renderFinished = renderFinished
     this.rerender = rerender
     this.ready = true
@@ -21,9 +22,13 @@ function nativeRenderer(canvas) {
     }
 
     function renderFinished() {
+        return (frames.length == 0 || frames[0].lores == 0)
+    }
+
+    function renderShown() {
         if (frames.length == 0) return true
         for (var t = performance.now(); frames[0].lores >= initres || (frames[0].lores > 0 && performance.now() < t + 1000/maxfps); nextPixelRow(frames[0])) {}
-        return frames[0].lores < initres
+        return frames[0].shown
     }
 
     function rerender() {
@@ -109,6 +114,7 @@ function nativeRenderer(canvas) {
             if (f == frames[0]) {
                 ctx.fillRect(0, 0, width, height)
                 ctx.drawImage(img, 0, 0, width, height)
+                f.shown = true
             }
         })
 

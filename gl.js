@@ -120,7 +120,7 @@ void main() {
 }
 `
 
-function glRenderer(canvas) {
+function glRenderer(canvas, redraw) {
     var gl,
         program,
         programMaxIteration,
@@ -141,6 +141,7 @@ function glRenderer(canvas) {
         fenceSync
     this.setSize = setSize
     this.render = render
+    this.renderShown = renderFinished
     this.renderFinished = renderFinished
     this.rerender = rerender
 
@@ -148,6 +149,7 @@ function glRenderer(canvas) {
         ev.preventDefault()
         drawing.palette = false
         this.ready = false
+        redraw()
     })
     canvas.addEventListener("webglcontextrestored", ev => {
         setupProgram(128)
@@ -201,7 +203,7 @@ function glRenderer(canvas) {
     }
 
     function renderFinished() {
-        if (fenceSync && gl && gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
+        if (fenceSync && gl && gl.isSync(fenceSync) && gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
             return false
         fenceSync = null
         return true
