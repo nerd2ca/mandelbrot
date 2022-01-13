@@ -24,7 +24,9 @@ function ui(display) {
     // show current coordinates in location bar
     var updhash
     function setTarget(cx, cy, scale, maxiter, seconds) {
-        curhash = `#${cx}/${cy}/${scale}/${maxiter}`
+        var roundscale = scale.toFixed(3)
+        if (scale > 1000) roundscale = Math.ceil(scale)
+        curhash = `#${cx}/${cy}/${roundscale}/${maxiter}`
         if (updhash)
             window.clearTimeout(updhash)
         updhash = window.setTimeout(() => {
