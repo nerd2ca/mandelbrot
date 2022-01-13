@@ -28,7 +28,7 @@ void shade32() {
             continue;
         float ix2 = ix*ix;
         float iy2 = iy*iy;
-        if (ix2 + iy2 > 4.0) {
+        if (ix2 + iy2 >= 4.0) {
             c = iter;
             continue;
         }
@@ -81,11 +81,12 @@ vec2 df64mult(vec2 a, vec2 b) {
 }
 vec2 df64sq(vec2 a) {
     vec2 p = twoProd(a.x, a.x);
-    p.y += a.x * a.y * 2.0;
+    float axy = a.x * a.y;
+    p.y += axy+axy;
     return quickTwoSum(p.x, p.y);
 }
 void main() {
-    if (1.0/scale < 1e5) {
+    if (scale > 1e-6) {
         shade32();
         return;
     }
@@ -99,7 +100,7 @@ void main() {
             continue;
         vec4 sq = vec4(df64sq(ixy.xy), df64sq(ixy.zw));
         vec2 dsq = df64add(sq.xy, sq.zw);
-        if (dsq.x > 4.0) {
+        if (dsq.x >= 4.0 && (dsq.x > 4.0 || dsq.y >= 0.0)) {
             c = iter;
             continue;
         }

@@ -72,18 +72,22 @@ function nativeRenderer(canvas, redraw) {
 
     function nextPixelRow(f, palette) {
         var buf = f.buf
+        const hw = f.w/2,
+              hh = f.h/2
         for (x = 0; x < f.w; x += f.lores)
             if (f.lores == initres ||
                 (x % (f.lores*2) > 0) ||
                 (y % (f.lores*2) > 0)) {
-                var x0 = f.cx + (x-f.w/2)/f.pixscale
-                var y0 = f.cy + (y-f.h/2)/f.pixscale
-                var ix = 0
-                var iy = 0
-                var iteration = 0
+                const x0 = f.cx + (x-hw)/f.pixscale,
+                      y0 = f.cy + (y-hh)/f.pixscale
+                var ix = 0,
+                    iy = 0,
+                    iteration = 0
                 while (iteration < f.maxiter-1) {
-                    var ix2 = ix*ix, iy2 = iy*iy
-                    if (ix2 + iy2 > 4) break
+                    var ix2 = ix*ix,
+                        iy2 = iy*iy
+                    if (ix2 + iy2 > 4)
+                        break
                     var xnext = ix2 - iy2 + x0
                     iy = 2*ix*iy + y0
                     ix = xnext
