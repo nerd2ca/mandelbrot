@@ -153,8 +153,7 @@ function glRenderer(canvas, redraw) {
         redraw()
     })
     canvas.addEventListener("webglcontextrestored", ev => {
-        setupProgram(128)
-        this.ready = true
+        this.ready = setupProgram(128)
     })
 
     if (document.location.toString().indexOf('nogl') >= 0) {
@@ -172,8 +171,7 @@ function glRenderer(canvas, redraw) {
             chaosmonkey++
         }, 2000)
     }
-    setupProgram(128)
-    this.ready = true
+    this.ready = setupProgram(128)
 
     function df64(a, b) {
         const splitter = (1<<29)+1
@@ -365,6 +363,8 @@ function glRenderer(canvas, redraw) {
         gl.activeTexture(gl.TEXTURE1)
         const texture = gl.createTexture()
         gl.bindTexture(gl.TEXTURE_2D, texture)
+
+        return true
     }
 
     function cleanup() {

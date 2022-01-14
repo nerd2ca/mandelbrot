@@ -110,17 +110,8 @@ function nativeRenderer(canvas, redraw) {
         y = 0
         f.lores = Math.floor(f.lores/2)
 
-        createImageBitmap(new ImageData(f.buf, f.w), 0, 0, f.w, f.h, {
-            resizeWidth: f.w,
-            resizeHeight: f.h,
-        }).then((img) => {
-            f.img = img
-            if (f == frames[0]) {
-                ctx.fillRect(0, 0, width, height)
-                ctx.drawImage(img, 0, 0, width, height)
-                f.shown = true
-            }
-        })
+        ctx.putImageData(new ImageData(f.buf, f.w, f.h), 0, 0)
+        f.shown = true
 
         return f.lores > 0
     }
