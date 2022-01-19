@@ -1,9 +1,38 @@
-new ui(new display([
-    {ctor: glRenderer, canvas: document.getElementById('gl')},
-    {ctor: nativeRenderer, canvas: document.getElementById('nogl')},
-]))
+new ui(
+    new display({
+        renderers: [
+            {ctor: glRenderer, canvas: document.getElementById('gl')},
+            {ctor: nativeRenderer, canvas: document.getElementById('nogl')},
+        ],
+    }),
+    new Pip(document.getElementById('pip')),
+)
 
-function ui(display) {
+function Pip(canvas) {
+    canvas.style.position = 'absolute'
+    canvas.style.left = 0
+    canvas.style.top = 0
+    this.show = show
+    this.hide = hide
+    hide()
+    var disp = new display({
+        renderers: [{ctor: nativeRenderer, canvas: canvas}],
+        crosshair: true,
+        minres: 1,
+        width: 100,
+        height: 100,
+    })
+    function show(jx, jy, tx, ty, scale, maxiter) {
+        canvas.style.display = 'block'
+        disp.crosshair = jx != 0 || jy != 0
+        disp.setTarget(jx, jy, tx, ty, 2*scale, maxiter, 0)
+    }
+    function hide() {
+        canvas.style.display = 'none'
+    }
+}
+
+function ui(display, pip) {
     // move to coordinates specified by location bar
     var curhash
     window.addEventListener('hashchange', useHash)
@@ -35,6 +64,8 @@ function ui(display) {
             document.location.hash = curhash
         }, 250)
         display.setTarget(jx, jy, cx, cy, scale, maxiter, seconds)
+        if (jx == 0 && jy == 0) pip.show(cx, cy, 0, 0, 0.2, maxiter)
+        else pip.show(0, 0, jx, jy, scale, maxiter)
     }
 
     // drag = pan
@@ -98,12 +129,15 @@ function ui(display) {
         }
         var cur = display.currentView()
         if (e.targetTouches.length > 3) {
-            setTarget(0,
-                      0,
-                      cur.cx,
-                      cur.cy,
-                      cur.scale,
-                      cur.maxiter)
+            if (cur.jx != 0 || cur.jy != 0) {
+                setTarget(0,
+                          0,
+                          cur.jx,
+                          cur.jy,
+                          cur.scale,
+                          cur.maxiter)
+            }
+            pip.hide()
             lasttouch = null
             return
         }
@@ -111,8 +145,14 @@ function ui(display) {
             var x = (e.targetTouches[0].clientX + e.targetTouches[1].clientX + e.targetTouches[2].clientX)/3,
                 y = (e.targetTouches[0].clientY + e.targetTouches[1].clientY + e.targetTouches[2].clientY)/3
             if (lasttouch && lasttouch.n == e.targetTouches.length) {
-                setTarget(cur.jx + (x - lasttouch.x)/cur.pixscale,
-                          cur.jy + (y - lasttouch.y)/cur.pixscale,
+                var jx = cur.jx,
+                    jy = cur.jy
+                if (jx == 0 && jy == 0) {
+                    jx = cur.cx
+                    jy = cur.cy
+                }
+                setTarget(jx - (x - lasttouch.x)/cur.pixscale,
+                          jy - (y - lasttouch.y)/cur.pixscale,
                           cur.cx,
                           cur.cy,
                           cur.scale,

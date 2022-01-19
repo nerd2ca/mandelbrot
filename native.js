@@ -1,5 +1,5 @@
-function nativeRenderer(canvas, redraw) {
-    const initres = 4, flyres = 1, maxfps = 90
+function nativeRenderer(args) {
+    const initres = args.minres || 4, flyres = 1, maxfps = 90
 
     this.setSize = setSize
     this.render = render
@@ -12,7 +12,7 @@ function nativeRenderer(canvas, redraw) {
         width = 1,
         height = 1,
         frames = [],
-        ctx = canvas.getContext('2d')
+        ctx = args.canvas.getContext('2d')
 
     ctx.fillStyle = '#000'
 
@@ -121,6 +121,14 @@ function nativeRenderer(canvas, redraw) {
         f.lores = Math.floor(f.lores/2)
 
         ctx.putImageData(new ImageData(f.buf, f.w, f.h), 0, 0)
+        if (args.crosshair) {
+            ctx.strokeStyle = '#fff'
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(f.w/2, f.h/2)
+            ctx.lineTo(f.w/2, f.h/2+1)
+            ctx.stroke()
+        }
         f.shown = true
 
         return f.lores > 0

@@ -133,7 +133,7 @@ void main() {
 }
 `
 
-function glRenderer(canvas, redraw) {
+function glRenderer(args) {
     var gl,
         program,
         programMaxIteration,
@@ -147,7 +147,6 @@ function glRenderer(canvas, redraw) {
         bufCentreIn,
         bufCentreOut,
         usingPalette,
-        canvas,
         width,
         height,
         drawn = {},
@@ -159,14 +158,14 @@ function glRenderer(canvas, redraw) {
     this.renderFinished = renderFinished
     this.rerender = rerender
 
-    canvas.addEventListener("webglcontextlost", ev => {
+    args.canvas.addEventListener("webglcontextlost", ev => {
         ev.preventDefault()
         drawing.palette = false
         this.ready = false
         cleanup()
-        redraw()
+        args.redraw()
     })
-    canvas.addEventListener("webglcontextrestored", ev => {
+    args.canvas.addEventListener("webglcontextrestored", ev => {
         this.ready = setupProgram(128)
     })
 
@@ -310,7 +309,7 @@ function glRenderer(canvas, redraw) {
     }
 
     function setupProgram(maxiter) {
-        if (!gl) gl = canvas.getContext('webgl2', {antialias: false})
+        if (!gl) gl = args.canvas.getContext('webgl2', {antialias: false})
         if (!gl) return
 
         if (wantfb) {

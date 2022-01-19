@@ -1,4 +1,4 @@
-function display(renderers) {
+function display(args) {
     var af_id,
         w,
         h,
@@ -25,8 +25,13 @@ function display(renderers) {
     this.currentTarget = currentTarget
     this.currentView = currentView
     this.setTarget = setTarget
-    renderers.forEach(r => {
-        r.instance = new r.ctor(r.canvas, draw)
+    args.renderers.forEach(r => {
+        r.instance = new r.ctor({
+            canvas: r.canvas,
+            redraw: draw,
+            crosshair: args.crosshair,
+            minres: args.minres,
+        })
         r.canvas.style.display = 'none'
     })
     window.addEventListener('resize', resize)
@@ -84,7 +89,7 @@ function display(renderers) {
             af_id = window.requestAnimationFrame(_draw)
             return
         }
-        renderers.forEach(r => {
+        args.renderers.forEach(r => {
             if (newview.renderer || !r.instance.ready) {
                 if (view.renderer == r)
                     r.canvas.style.display = 'none'
@@ -102,12 +107,12 @@ function display(renderers) {
     }
 
     function resize() {
-        var rw = window.innerWidth,
-            rh = window.innerHeight
+        var rw = args.width || window.innerWidth,
+            rh = args.height || window.innerHeight
         if (rw == w && rh == h) return
         w = rw
         h = rh
-        renderers.forEach(r => {
+        args.renderers.forEach(r => {
             r.instance.setSize(w, h)
             r.canvas.width = w
             r.canvas.height = h
