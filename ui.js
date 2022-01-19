@@ -84,12 +84,37 @@ function ui(display, pip) {
             return
         }
         var cur = display.currentView()
-        setTarget(cur.jx,
-                  cur.jy,
-                  cur.cx - (e.clientX - dragging.lastX)/cur.pixscale,
-                  cur.cy - (e.clientY - dragging.lastY)/cur.pixscale,
-                  cur.scale,
-                  cur.maxiter)
+        var dx = (e.clientX - dragging.lastX)/cur.pixscale,
+            dy = (e.clientY - dragging.lastY)/cur.pixscale,
+            cx = cur.cx,
+            cy = cur.cy,
+            jx = cur.jx,
+            jy = cur.jy
+        if (e.shiftKey) {
+            if (jx == 0 && jy == 0) {
+                jx = cur.cx
+                jy = cur.cy
+            }
+            setTarget(jx - dx,
+                      jy - dy,
+                      cx,
+                      cy,
+                      cur.scale,
+                      cur.maxiter)
+        } else {
+            if (e.ctrlKey && (jx != 0 || jy != 0)) {
+                cx = jx
+                cy = jy
+                jx = 0
+                jy = 0
+            }
+            setTarget(jx,
+                      jy,
+                      cx - dx,
+                      cy - dy,
+                      cur.scale,
+                      cur.maxiter)
+        }
         dragging.lastX = e.clientX
         dragging.lastY = e.clientY
     })
