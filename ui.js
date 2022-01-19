@@ -111,7 +111,6 @@ function ui(display) {
             var x = (e.targetTouches[0].clientX + e.targetTouches[1].clientX + e.targetTouches[2].clientX)/3,
                 y = (e.targetTouches[0].clientY + e.targetTouches[1].clientY + e.targetTouches[2].clientY)/3
             if (lasttouch && lasttouch.n == e.targetTouches.length) {
-                console.log([(x - lasttouch.x)/cur.pixscale, (y - lasttouch.y)/cur.pixscale])
                 setTarget(cur.jx + (x - lasttouch.x)/cur.pixscale,
                           cur.jy + (y - lasttouch.y)/cur.pixscale,
                           cur.cx,
