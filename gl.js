@@ -5,6 +5,7 @@ var fragmentShader64Source = `
 #version 100
 precision highp float;
 uniform int max_iter;
+uniform vec4 julia;
 uniform vec4 centreIn;
 uniform vec2 centreOut;
 uniform float scale;
@@ -21,6 +22,12 @@ void shade32() {
     float y0 = centreIn.z - (gl_FragCoord.y - centreOut.y) * scale;
     float ix = 0.0;
     float iy = 0.0;
+    if (julia.x != 0.0 || julia.z != 0.0) {
+        ix = x0;
+        iy = y0;
+        x0 = julia.x;
+        y0 = julia.z;
+    }
     int c = -1;
     const int iterlimit = glMaxIteration;
     for (int iter = 0; iter < iterlimit; iter++) {
@@ -94,6 +101,11 @@ void main() {
     vec2 y0 = df64add(centreIn.zw, df64mult(vec2(centreOut.y - gl_FragCoord.y, 0.0), vec2(scale, 0.0)));
     int c = -1;
     vec4 ixy;
+    if (julia.x != 0.0 || julia.y != 0.0) {
+        ixy = vec4(x0, y0);
+        x0 = julia.xy;
+        y0 = julia.zw;
+    }
     const int iterlimit = glMaxIteration;
     for (int iter = 0; iter < iterlimit; iter++) {
         if (c >= 0 || iter >= max_iter)
@@ -131,6 +143,7 @@ function glRenderer(canvas, redraw) {
         bufMaxIter,
         bufScale,
         bufPalette,
+        bufJulia,
         bufCentreIn,
         bufCentreOut,
         usingPalette,
@@ -150,6 +163,7 @@ function glRenderer(canvas, redraw) {
         ev.preventDefault()
         drawing.palette = false
         this.ready = false
+        cleanup()
         redraw()
     })
     canvas.addEventListener("webglcontextrestored", ev => {
@@ -208,7 +222,7 @@ function glRenderer(canvas, redraw) {
         return true
     }
 
-    function render(cx, cy, scale, palette) {
+    function render(jx, jy, cx, cy, scale, palette) {
         if (gl.isContextLost()) {
             drawing.palette = false
             this.ready = false
@@ -218,6 +232,8 @@ function glRenderer(canvas, redraw) {
             if (gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
                 return
             fenceSync = null
+            drawn.jx = drawing.jx
+            drawn.jy = drawing.jy
             drawn.cx = drawing.cx
             drawn.cy = drawing.cy
             drawn.scale = drawing.scale
@@ -231,13 +247,17 @@ function glRenderer(canvas, redraw) {
                 drawing.fb = fb
             }
         }
-        if (drawn.cx == cx &&
+        if (drawn.jx == jx &&
+            drawn.jy == jy &&
+            drawn.cx == cx &&
             drawn.cy == cy &&
             drawn.scale == scale &&
             drawn.width == width &&
             drawn.height == height &&
             drawn.palette == palette.length)
             return
+        drawing.jx = jx
+        drawing.jy = jy
         drawing.cx = cx
         drawing.cy = cy
         drawing.scale = scale
@@ -266,6 +286,7 @@ function glRenderer(canvas, redraw) {
         gl.viewport(0, 0, width, height)
         gl.uniform1i(bufMaxIter, palette.length)
         gl.uniform1i(bufPaletteSize, psize)
+        gl.uniform4fv(bufJulia, df64(jx, jy))
         gl.uniform4fv(bufCentreIn, df64(cx, cy))
         gl.uniform2fv(bufCentreOut, [width/2, height/2])
         gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
@@ -312,6 +333,7 @@ function glRenderer(canvas, redraw) {
             console.log(gl.getShaderInfoLog(fragmentShader))
 
         programMaxIteration = maxiter
+        if (program) gl.deleteProgram(program)
         program = gl.createProgram()
         gl.attachShader(program, vertexShader)
         gl.attachShader(program, fragmentShader)
@@ -349,6 +371,7 @@ function glRenderer(canvas, redraw) {
         bufPaletteSize = gl.getUniformLocation(program, 'psize')
         bufMaxIter = gl.getUniformLocation(program, 'max_iter')
         bufScale = gl.getUniformLocation(program, 'scale')
+        bufJulia = gl.getUniformLocation(program, 'julia')
         bufCentreIn = gl.getUniformLocation(program, 'centreIn')
         bufCentreOut = gl.getUniformLocation(program, 'centreOut')
         bufPalette = gl.getUniformLocation(program, 'palette')

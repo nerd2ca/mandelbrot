@@ -4,6 +4,8 @@ function display(renderers) {
         h,
         palette = [],
         target = {
+            jx: 0,
+            jy: 0,
             cx: 0,
             cy: 0,
             scale: 1,
@@ -11,6 +13,8 @@ function display(renderers) {
             t1: -1,
         },
         view = {
+            jx: 0,
+            jy: 0,
             cx: 0,
             cy: 0,
             scale: 1,
@@ -40,6 +44,8 @@ function display(renderers) {
         var newview = {
             w: w,
             h: h,
+            jx: target.jx,
+            jy: target.jy,
             cx: target.cx,
             cy: target.cy,
             maxiter: target.maxiter,
@@ -57,6 +63,8 @@ function display(renderers) {
             if (view.renderer.ready &&
                 view.w == newview.w &&
                 view.h == newview.h &&
+                view.jx == target.jx &&
+                view.jy == target.jy &&
                 view.cx == target.cx &&
                 view.cy == target.cy &&
                 view.scale == target.scale &&
@@ -88,7 +96,7 @@ function display(renderers) {
         })
         newview.renderStart = now
         update_palette(palette, newview.maxiter)
-        newview.renderer.instance.render(newview.cx, newview.cy, newview.scale, palette)
+        newview.renderer.instance.render(newview.jx, newview.jy, newview.cx, newview.cy, newview.scale, palette)
         pendingView = newview
         af_id = window.requestAnimationFrame(_draw)
     }
@@ -139,6 +147,8 @@ function display(renderers) {
 
     function currentTarget() {
         return {
+            jx: target.jx,
+            jy: target.jy,
             cx: target.cx,
             cy: target.cy,
             scale: target.scale,
@@ -150,6 +160,8 @@ function display(renderers) {
     function currentView() {
         var v = target.t1 <= performance.now() ? target : (pendingView || view)
         return {
+            jx: v.jx,
+            jy: v.jy,
             cx: v.cx,
             cy: v.cy,
             scale: v.scale,
@@ -158,7 +170,7 @@ function display(renderers) {
         }
     }
 
-    function setTarget(cx, cy, scale, maxiter, seconds) {
+    function setTarget(jx, jy, cx, cy, scale, maxiter, seconds) {
         if (cx < -2) cx = -2
         if (cx > 2) cx = 2
         if (cy < -2) cy = -2
@@ -168,6 +180,8 @@ function display(renderers) {
             cx = target.cx || cx
             cy = target.cy || cy
         }
+        target.jx = jx
+        target.jy = jy
         target.cx = cx
         target.cy = cy
         target.scale = scale

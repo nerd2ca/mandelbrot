@@ -35,10 +35,12 @@ function nativeRenderer(canvas, redraw) {
         renderFinished()
     }
 
-    function render(cx, cy, scale, palette) {
+    function render(jx, jy, cx, cy, scale, palette) {
         if (frames.length < 1 ||
             frames[0].w != width ||
             frames[0].h != height ||
+            frames[0].jx != jx ||
+            frames[0].jy != jy ||
             frames[0].cx != cx ||
             frames[0].cy != cy ||
             frames[0].scale != scale ||
@@ -48,6 +50,8 @@ function nativeRenderer(canvas, redraw) {
                 w: width,
                 h: height,
                 sq: Math.min(width, height),
+                jx: jx,
+                jy: jy,
                 cx: cx,
                 cy: cy,
                 scale: scale,
@@ -78,11 +82,17 @@ function nativeRenderer(canvas, redraw) {
             if (f.lores == initres ||
                 (x % (f.lores*2) > 0) ||
                 (y % (f.lores*2) > 0)) {
-                const x0 = f.cx + (x-hw)/f.pixscale,
-                      y0 = f.cy + (y-hh)/f.pixscale
+                var x0 = f.cx + (x-hw)/f.pixscale,
+                    y0 = f.cy + (y-hh)/f.pixscale
                 var ix = 0,
                     iy = 0,
                     iteration = 0
+                if (f.jx != 0 || f.jy != 0) {
+                    ix = x0
+                    iy = y0
+                    x0 = f.jx
+                    y0 = f.jy
+                }
                 while (iteration < f.maxiter-1) {
                     var ix2 = ix*ix,
                         iy2 = iy*iy
