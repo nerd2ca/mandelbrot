@@ -22,10 +22,10 @@ function Pip(canvas) {
         width: 100,
         height: 100,
     })
-    function show(jx, jy, tx, ty, scale, maxiter) {
+    function show(jx, jy, tx, ty, scale, maxiter, seconds) {
         canvas.style.display = 'block'
         disp.crosshair = jx != 0 || jy != 0
-        disp.setTarget(jx, jy, tx, ty, 2*scale, maxiter, 0)
+        disp.setTarget(jx, jy, tx, ty, 2*scale, maxiter, seconds)
     }
     function hide() {
         canvas.style.display = 'none'
@@ -64,8 +64,8 @@ function ui(display, pip) {
             document.location.hash = curhash
         }, 250)
         display.setTarget(jx, jy, cx, cy, scale, maxiter, seconds)
-        if (jx == 0 && jy == 0) pip.show(cx, cy, 0, 0, 0.2, maxiter)
-        else pip.show(0, 0, jx, jy, scale, maxiter)
+        if (jx == 0 && jy == 0) pip.show(cx, cy, 0, 0, 0.2, maxiter, seconds)
+        else pip.show(0, 0, jx, jy, scale, maxiter, seconds)
     }
 
     // drag = pan
@@ -162,7 +162,6 @@ function ui(display, pip) {
                           cur.scale,
                           cur.maxiter)
             }
-            pip.hide()
             lasttouch = null
             return
         }
