@@ -35,10 +35,11 @@ function nativeRenderer(args) {
         renderFinished()
     }
 
-    function render(jx, jy, cx, cy, scale, palette) {
+    function render(ftype, jx, jy, cx, cy, scale, palette) {
         if (frames.length < 1 ||
             frames[0].w != width ||
             frames[0].h != height ||
+            frames[0].ftype != ftype ||
             frames[0].jx != jx ||
             frames[0].jy != jy ||
             frames[0].cx != cx ||
@@ -50,6 +51,7 @@ function nativeRenderer(args) {
                 w: width,
                 h: height,
                 sq: Math.min(width, height),
+                ftype: ftype,
                 jx: jx,
                 jy: jy,
                 cx: cx,
@@ -84,10 +86,11 @@ function nativeRenderer(args) {
                 (y % (f.lores*2) > 0)) {
                 var x0 = f.cx + (x-hw)/f.pixscale,
                     y0 = f.cy + (y-hh)/f.pixscale
-                var ix = 0,
-                    iy = 0,
+                var ix = f.jx,
+                    iy = f.jy,
                     iteration = 0
-                if (f.jx != 0 || f.jy != 0) {
+                if ((ix != 0 || iy != 0) && f.ftype != 3) {
+                    // julia
                     ix = x0
                     iy = y0
                     x0 = f.jx

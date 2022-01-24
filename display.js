@@ -49,6 +49,7 @@ function display(args) {
         var newview = {
             w: w,
             h: h,
+            ftype: target.ftype,
             jx: target.jx,
             jy: target.jy,
             cx: target.cx,
@@ -68,6 +69,7 @@ function display(args) {
             if (view.renderer.ready &&
                 view.w == newview.w &&
                 view.h == newview.h &&
+                view.ftype == target.ftype &&
                 view.jx == target.jx &&
                 view.jy == target.jy &&
                 view.cx == target.cx &&
@@ -101,7 +103,7 @@ function display(args) {
         })
         newview.renderStart = now
         update_palette(palette, newview.maxiter)
-        newview.renderer.instance.render(newview.jx, newview.jy, newview.cx, newview.cy, newview.scale, palette)
+        newview.renderer.instance.render(newview.ftype, newview.jx, newview.jy, newview.cx, newview.cy, newview.scale, palette)
         pendingView = newview
         af_id = window.requestAnimationFrame(_draw)
     }
@@ -152,6 +154,7 @@ function display(args) {
 
     function currentTarget() {
         return {
+            ftype: target.ftype,
             jx: target.jx,
             jy: target.jy,
             cx: target.cx,
@@ -165,6 +168,7 @@ function display(args) {
     function currentView() {
         var v = target.t1 <= performance.now() ? target : (pendingView || view)
         return {
+            ftype: v.ftype,
             jx: v.jx,
             jy: v.jy,
             cx: v.cx,
@@ -175,7 +179,7 @@ function display(args) {
         }
     }
 
-    function setTarget(jx, jy, cx, cy, scale, maxiter, seconds) {
+    function setTarget(ftype, jx, jy, cx, cy, scale, maxiter, seconds) {
         if (cx < -2) cx = -2
         if (cx > 2) cx = 2
         if (cy < -2) cy = -2
@@ -185,6 +189,7 @@ function display(args) {
             cx = target.cx || cx
             cy = target.cy || cy
         }
+        target.ftype = ftype
         target.jx = jx
         target.jy = jy
         target.cx = cx

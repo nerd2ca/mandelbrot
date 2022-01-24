@@ -5,6 +5,7 @@ var fragmentShader64Source = `
 #version 100
 precision highp float;
 uniform int max_iter;
+uniform int ftype;
 uniform vec4 julia;
 uniform vec4 centreIn;
 uniform vec2 centreOut;
@@ -20,8 +21,8 @@ void pick(int c) {
 void shade32() {
     vec2 xy0 = vec2(centreIn.x + (gl_FragCoord.x - centreOut.x) * scale,
                     centreIn.z - (gl_FragCoord.y - centreOut.y) * scale);
-    vec2 ixy = vec2(0.0, 0.0);
-    if (julia.xz != ixy) {
+    vec2 ixy = julia.xz;
+    if (julia.xz != vec2(0.0, 0.0) && ftype != 3) {
         ixy = xy0;
         xy0 = julia.xz;
     }
@@ -95,8 +96,8 @@ void main() {
     vec2 x0 = df64add(centreIn.xy, df64mult(vec2(gl_FragCoord.x - centreOut.x, 0.0), vec2(scale, 0.0)));
     vec2 y0 = df64add(centreIn.zw, df64mult(vec2(centreOut.y - gl_FragCoord.y, 0.0), vec2(scale, 0.0)));
     int c = -1;
-    vec4 ixy;
-    if (julia != ixy) {
+    vec4 ixy = julia;
+    if (julia != vec4(0.0, 0.0, 0.0, 0.0) && ftype != 3) {
         ixy = vec4(x0, y0);
         x0 = julia.xy;
         y0 = julia.zw;
@@ -139,6 +140,7 @@ function glRenderer(args) {
         bufScale,
         bufPalette,
         bufJulia,
+        bufFtype,
         bufCentreIn,
         bufCentreOut,
         usingPalette,
@@ -216,7 +218,7 @@ function glRenderer(args) {
         return true
     }
 
-    function render(jx, jy, cx, cy, scale, palette) {
+    function render(ftype, jx, jy, cx, cy, scale, palette) {
         if (gl.isContextLost()) {
             drawing.palette = false
             this.ready = false
@@ -226,6 +228,7 @@ function glRenderer(args) {
             if (gl.clientWaitSync(fenceSync, 0, 0) == gl.TIMEOUT_EXPIRED)
                 return
             fenceSync = null
+            drawn.ftype = drawing.ftype
             drawn.jx = drawing.jx
             drawn.jy = drawing.jy
             drawn.cx = drawing.cx
@@ -241,7 +244,8 @@ function glRenderer(args) {
                 drawing.fb = fb
             }
         }
-        if (drawn.jx == jx &&
+        if (drawn.ftype == ftype &&
+            drawn.jx == jx &&
             drawn.jy == jy &&
             drawn.cx == cx &&
             drawn.cy == cy &&
@@ -250,6 +254,7 @@ function glRenderer(args) {
             drawn.height == height &&
             drawn.palette == palette.length)
             return
+        drawing.ftype = ftype
         drawing.jx = jx
         drawing.jy = jy
         drawing.cx = cx
@@ -281,6 +286,7 @@ function glRenderer(args) {
         gl.uniform1i(bufMaxIter, palette.length)
         gl.uniform1i(bufPaletteSize, psize)
         gl.uniform4fv(bufJulia, df64(jx, jy))
+        gl.uniform1i(bufFtype, ftype)
         gl.uniform4fv(bufCentreIn, df64(cx, cy))
         gl.uniform2fv(bufCentreOut, [width/2, height/2])
         gl.uniform1f(bufScale, 1/(scale * Math.min(width, height)))
@@ -366,6 +372,7 @@ function glRenderer(args) {
         bufMaxIter = gl.getUniformLocation(program, 'max_iter')
         bufScale = gl.getUniformLocation(program, 'scale')
         bufJulia = gl.getUniformLocation(program, 'julia')
+        bufFtype = gl.getUniformLocation(program, 'ftype')
         bufCentreIn = gl.getUniformLocation(program, 'centreIn')
         bufCentreOut = gl.getUniformLocation(program, 'centreOut')
         bufPalette = gl.getUniformLocation(program, 'palette')

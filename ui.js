@@ -22,10 +22,10 @@ function Pip(canvas) {
         width: 100,
         height: 100,
     })
-    function show(jx, jy, tx, ty, scale, maxiter, seconds) {
+    function show(ftype, jx, jy, tx, ty, scale, maxiter, seconds) {
         canvas.style.display = 'block'
         disp.crosshair = jx != 0 || jy != 0
-        disp.setTarget(jx, jy, tx, ty, 2*scale, maxiter, seconds)
+        disp.setTarget(ftype, jx, jy, tx, ty, 2*scale, maxiter, seconds)
     }
     function hide() {
         canvas.style.display = 'none'
@@ -47,25 +47,26 @@ function ui(display, pip) {
             scale = parseFloat(params[2]) || 1,
             maxiter = parseInt(params[3]) || 128,
             jx = parseFloat(params[4]) || 0,
-            jy = parseFloat(params[5]) || 0
-        setTarget(jx, jy, cx, cy, scale, maxiter, 0)
-        setTarget(jx, jy, cx, cy, scale, maxiter, 0.5*Math.log(scale)/Math.log(2))
+            jy = parseFloat(params[5]) || 0,
+            ftype = parseInt(params[6]) || 1
+        setTarget(ftype, jx, jy, cx, cy, scale, maxiter, 0)
+        setTarget(ftype, jx, jy, cx, cy, scale, maxiter, 0.5*Math.log(scale)/Math.log(2))
     }
 
     // show current coordinates in location bar
     var updhash
-    function setTarget(jx, jy, cx, cy, scale, maxiter, seconds) {
+    function setTarget(ftype, jx, jy, cx, cy, scale, maxiter, seconds) {
         var roundscale = scale.toFixed(3)
         if (scale > 1000) roundscale = Math.ceil(scale)
-        curhash = `#${cx}/${cy}/${roundscale}/${maxiter}/${jx}/${jy}`
+        curhash = `#${cx}/${cy}/${roundscale}/${maxiter}/${jx}/${jy}/${ftype}`
         if (updhash)
             window.clearTimeout(updhash)
         updhash = window.setTimeout(() => {
             document.location.hash = curhash
         }, 250)
-        display.setTarget(jx, jy, cx, cy, scale, maxiter, seconds)
-        if (jx == 0 && jy == 0) pip.show(cx, cy, 0, 0, 0.2, maxiter, seconds)
-        else pip.show(0, 0, jx, jy, scale, maxiter, seconds)
+        display.setTarget(ftype, jx, jy, cx, cy, scale, maxiter, seconds)
+        if (jx == 0 && jy == 0) pip.show(1, cx, cy, 0, 0, 0.2, maxiter, seconds)
+        else pip.show(2, 0, 0, jx, jy, scale, maxiter, seconds)
     }
 
     // drag = pan
@@ -76,7 +77,7 @@ function ui(display, pip) {
     window.addEventListener('mousedown', e => {
         dragging = {lastX: e.clientX, lastY: e.clientY}
         var cur = display.currentView()
-        display.setTarget(cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter)
+        display.setTarget(cur.ftype, cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter)
     })
     window.addEventListener('mousemove', e => {
         if (!e.buttons || !dragging) {
@@ -95,7 +96,8 @@ function ui(display, pip) {
                 jx = cur.cx
                 jy = cur.cy
             }
-            setTarget(jx - dx,
+            setTarget(cur.ftype,
+                      jx - dx,
                       jy - dy,
                       cx,
                       cy,
@@ -108,7 +110,8 @@ function ui(display, pip) {
                 jx = 0
                 jy = 0
             }
-            setTarget(jx,
+            setTarget(cur.ftype,
+                      jx,
                       jy,
                       cx - dx,
                       cy - dy,
@@ -125,7 +128,8 @@ function ui(display, pip) {
         e.preventDefault()
         var cur = display.currentView()
         if (e.ctrlKey) {
-            setTarget(cur.jx,
+            setTarget(cur.ftype,
+                      cur.jx,
                       cur.jy,
                       cur.cx,
                       cur.cy,
@@ -138,7 +142,7 @@ function ui(display, pip) {
         var mag = Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1))
         var cx = cur.cx + dx/cur.pixscale*(1-1/mag)
         var cy = cur.cy + dy/cur.pixscale*(1-1/mag)
-        setTarget(cur.jx, cur.jy, cx, cy, cur.scale*mag, cur.maxiter)
+        setTarget(cur.ftype, cur.jx, cur.jy, cx, cy, cur.scale*mag, cur.maxiter)
     }
     ;['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((et) => {
         window.addEventListener(et, handleTouch, {passive: false})
@@ -155,7 +159,8 @@ function ui(display, pip) {
         var cur = display.currentView()
         if (e.targetTouches.length > 3) {
             if (cur.jx != 0 || cur.jy != 0) {
-                setTarget(0,
+                setTarget(cur.ftype,
+                          0,
                           0,
                           cur.jx,
                           cur.jy,
@@ -175,7 +180,8 @@ function ui(display, pip) {
                     jx = cur.cx
                     jy = cur.cy
                 }
-                setTarget(jx - (x - lasttouch.x)/cur.pixscale,
+                setTarget(cur.ftype,
+                          jx - (x - lasttouch.x)/cur.pixscale,
                           jy - (y - lasttouch.y)/cur.pixscale,
                           cur.cx,
                           cur.cy,
@@ -218,7 +224,8 @@ function ui(display, pip) {
         }
         var magx = x - e.target.clientWidth/2,
             magy = y - e.target.clientHeight/2
-        setTarget(cur.jx,
+        setTarget(cur.ftype,
+                  cur.jx,
                   cur.jy,
                   cur.cx - dx/cur.pixscale + magx/cur.pixscale*(1-1/mag),
                   cur.cy - dy/cur.pixscale + magy/cur.pixscale*(1-1/mag),
