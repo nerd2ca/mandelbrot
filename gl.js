@@ -18,30 +18,25 @@ void pick(int c) {
     gl_FragColor = texture2D(palette, vec2(float(c)/float(psize), 0.5));
 }
 void shade32() {
-    float x0 = centreIn.x + (gl_FragCoord.x - centreOut.x) * scale;
-    float y0 = centreIn.z - (gl_FragCoord.y - centreOut.y) * scale;
-    float ix = 0.0;
-    float iy = 0.0;
-    if (julia.x != 0.0 || julia.z != 0.0) {
-        ix = x0;
-        iy = y0;
-        x0 = julia.x;
-        y0 = julia.z;
+    vec2 xy0 = vec2(centreIn.x + (gl_FragCoord.x - centreOut.x) * scale,
+                    centreIn.z - (gl_FragCoord.y - centreOut.y) * scale);
+    vec2 ixy = vec2(0.0, 0.0);
+    if (julia.xz != ixy) {
+        ixy = xy0;
+        xy0 = julia.xz;
     }
     int c = -1;
     const int iterlimit = glMaxIteration;
     for (int iter = 0; iter < iterlimit; iter++) {
         if (c >= 0 || iter >= max_iter)
             continue;
-        float ix2 = ix*ix;
-        float iy2 = iy*iy;
-        if (ix2 + iy2 >= 4.0) {
+        vec2 ixy2 = ixy*ixy;
+        if (ixy2.x + ixy2.y >= 4.0) {
             c = iter;
             continue;
         }
-        float xnext = ix2 - iy2 + x0;
-        iy = 2.0 * ix * iy + y0;
-        ix = xnext;
+        ixy = vec2(ixy2.x - ixy2.y + xy0.x,
+                   2.0 * ixy.x * ixy.y + xy0.y);
     }
     pick(c);
 }
@@ -101,7 +96,7 @@ void main() {
     vec2 y0 = df64add(centreIn.zw, df64mult(vec2(centreOut.y - gl_FragCoord.y, 0.0), vec2(scale, 0.0)));
     int c = -1;
     vec4 ixy;
-    if (julia.x != 0.0 || julia.y != 0.0) {
+    if (julia != ixy) {
         ixy = vec4(x0, y0);
         x0 = julia.xy;
         y0 = julia.zw;
