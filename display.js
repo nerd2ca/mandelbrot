@@ -1,4 +1,4 @@
-function display(args) {
+function Display(args) {
     var af_id,
         w,
         h,
@@ -37,7 +37,6 @@ function display(args) {
     window.addEventListener('resize', resize)
     window.addEventListener('orientationchange', resize)
     resize()
-    draw()
 
     function draw() {
         if (!af_id)
@@ -66,7 +65,7 @@ function display(args) {
             view = pendingView
             lastFrameTime = now - pendingView.renderStart
             pendingView = null
-            if (view.renderer.ready &&
+            if (view.renderer.instance.ready &&
                 view.w == newview.w &&
                 view.h == newview.h &&
                 view.ftype == target.ftype &&
@@ -76,8 +75,11 @@ function display(args) {
                 view.cy == target.cy &&
                 view.scale == target.scale &&
                 view.maxiter == target.maxiter &&
-                view.renderer.instance.renderFinished())
+                view.renderer.instance.renderFinished()) {
+                if (args.onidle)
+                    args.onidle()
                 return
+            }
         }
         if (pendingView) {
             if (lastFrameTime && newview.scale < pendingView.scale && newview.cx == pendingView.cx && newview.cy == pendingView.cy) {

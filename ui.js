@@ -1,5 +1,5 @@
 new ui(
-    new display({
+    new Display({
         renderers: [
             {ctor: glRenderer, canvas: document.getElementById('gl')},
             {ctor: nativeRenderer, canvas: document.getElementById('nogl')},
@@ -15,7 +15,7 @@ function Pip(canvas) {
     this.show = show
     this.hide = hide
     hide()
-    var disp = new display({
+    var disp = new Display({
         renderers: [{ctor: nativeRenderer, canvas: canvas}],
         crosshair: true,
         minres: 1,
@@ -68,6 +68,59 @@ function ui(display, pip) {
         if (jx == 0 && jy == 0) pip.show(1, cx, cy, 0, 0, 0.2, maxiter, seconds)
         else pip.show(2, 0, 0, jx, jy, scale, maxiter, seconds)
     }
+
+    window.addEventListener('keydown', async e => {
+        if (e.key == 's' && e.ctrlKey) {
+            e.preventDefault()
+            const cur = display.currentView()
+            const fh = await window.showSaveFilePicker({
+                suggestedName: (
+                    cur.jx==0 && cur.jy==0
+                        ? `mandelbrot @ ${ri(cur.cx, cur.cy)} mag ${cur.scale} max ${cur.maxiter}.png`
+                    : `julia c=${ri(cur.jx, cur.jy)} @ ${ri(cur.cx, cur.cy)} mag ${cur.scale} max ${cur.maxiter}.png`),
+            })
+            const ws = await fh.createWritable()
+            const canvas = document.createElement('canvas')
+            document.body.style.overflow = 'hidden'
+            const overlay = document.createElement('div')
+            overlay.style.width = '100%'
+            overlay.style.height = '100%'
+            overlay.style.position = 'absolute'
+            overlay.style.left = 0
+            overlay.style.top = 0
+            overlay.style.background = '#000'
+            overlay.style.opacity = 0.5
+            document.body.appendChild(canvas)
+            document.body.insertBefore(overlay, document.body.children.item(0))
+            const cleanup = () => {
+                document.body.removeChild(canvas)
+                document.body.removeChild(overlay)
+            }
+            var ready = false
+            const disp = new Display({
+                renderers: [{ctor: nativeRenderer, canvas: canvas}],
+                minres: 1,
+                width: 10000,
+                height: 10000,
+                onidle: () => {
+                    if (!ready) return
+                    ready = false
+                    canvas.toBlob(blob => {
+                        (async function() {
+                            await ws.write(blob)
+                            await ws.close()
+                            cleanup()
+                        })().catch(err => {
+                            console.log(err)
+                            cleanup()
+                        })
+                    })
+                },
+            })
+            disp.setTarget(cur.ftype, cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter, 0)
+            ready = true
+        }
+    })
 
     // drag = pan
     var dragging
@@ -232,4 +285,11 @@ function ui(display, pip) {
                   cur.scale*mag,
                   cur.maxiter)
     }
+}
+
+function ri(x, y) {
+    if (y < 0)
+        return `${x}${y}i`
+    else
+        return `${x}+${y}i`
 }
