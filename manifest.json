@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+    "name": "Mandelbrot",
+    "short_name": "Mandelbrot",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#000",
+    "description": "a fractal explorer",
+    "icons": [{
+        "src": "favicon-196x196.png",
+        "sizes": "196x196",
+        "type": "image/png"
+    }, {
+        "src": "favicon-128.png",
+        "sizes": "128x128",
+        "type": "image/png"
+    }, {
+        "src": "favicon-96x96.png",
+        "sizes": "96x96",
+        "type": "image/png"
+    }, {
+        "src": "apple-touch-icon-144x144.png",
+        "sizes": "144x144",
+        "type": "image/png"
+    }]
+}
