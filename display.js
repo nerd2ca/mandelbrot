@@ -10,6 +10,7 @@ function Display(args) {
             cy: 0,
             scale: 1,
             maxiter: 2,
+            speed: 2,
             t1: -1,
         },
         view = {
@@ -19,6 +20,7 @@ function Display(args) {
             cy: 0,
             scale: 1,
             maxiter: 2,
+            speed: 2,
         },
         pendingView,
         lastFrameTime
@@ -54,6 +56,7 @@ function Display(args) {
             cx: target.cx,
             cy: target.cy,
             maxiter: target.maxiter,
+            speed: target.speed,
         }
         if (now >= target.t1) {
             newview.scale = target.scale
@@ -75,6 +78,7 @@ function Display(args) {
                 view.cy == target.cy &&
                 view.scale == target.scale &&
                 view.maxiter == target.maxiter &&
+                view.speed == target.speed &&
                 view.renderer.instance.renderFinished()) {
                 if (args.onidle)
                     args.onidle()
@@ -164,6 +168,7 @@ function Display(args) {
             scale: target.scale,
             pixscale: target.scale * Math.min(w, h),
             maxiter: target.maxiter,
+            speed: target.speed,
         }
     }
 
@@ -178,10 +183,11 @@ function Display(args) {
             scale: v.scale,
             pixscale: v.scale * Math.min(w, h),
             maxiter: v.maxiter,
+            speed: v.speed,
         }
     }
 
-    function setTarget(ftype, jx, jy, cx, cy, scale, maxiter, seconds) {
+    function setTarget(ftype, jx, jy, cx, cy, scale, maxiter, speed, seconds) {
         if (cx < -2) cx = -2
         if (cx > 2) cx = 2
         if (cy < -2) cy = -2
@@ -199,9 +205,11 @@ function Display(args) {
         target.scale = scale
         target.pixscale = scale * Math.min(w, h)
         target.maxiter = maxiter
+        target.speed = speed
         view.cx = cx
         view.cy = cy
         view.maxiter = maxiter
+        view.speed = speed
         if (seconds) {
             target.t0 = performance.now()
             target.t1 = performance.now() + seconds*1000
