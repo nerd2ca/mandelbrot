@@ -117,7 +117,7 @@ function ui(display, pip) {
                     })
                 },
             })
-            disp.setTarget(cur.ftype, cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter, 'static')
+            disp.setTarget(cur.ftype, cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter, cur.travel)
             ready = true
         }
     })
@@ -130,7 +130,7 @@ function ui(display, pip) {
     window.addEventListener('mousedown', e => {
         dragging = {lastX: e.clientX, lastY: e.clientY}
         var cur = display.currentView()
-        display.setTarget(cur.ftype, cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter, 'static')
+        display.setTarget(cur.ftype, cur.jx, cur.jy, cur.cx, cur.cy, cur.scale, cur.maxiter, cur.travel)
     })
     window.addEventListener('mousemove', e => {
         if (!e.buttons || !dragging) {
@@ -156,7 +156,7 @@ function ui(display, pip) {
                       cy,
                       cur.scale,
                       cur.maxiter,
-                      'static')
+                      cur.travel)
         } else {
             if (e.ctrlKey && (jx != 0 || jy != 0)) {
                 cx = jx
@@ -171,7 +171,7 @@ function ui(display, pip) {
                       cy - dy,
                       cur.scale,
                       cur.maxiter,
-                      'static')
+                      cur.travel)
         }
         dragging.lastX = e.clientX
         dragging.lastY = e.clientY
@@ -190,7 +190,7 @@ function ui(display, pip) {
                       cur.cy,
                       cur.scale,
                       Math.ceil(cur.maxiter*Math.pow(1.1, Math.max(Math.min(-e.deltaY/100, 1), -1))),
-                      'static')
+                      cur.travel)
             return
         }
         var dx = e.clientX - e.target.clientWidth/2
@@ -198,7 +198,7 @@ function ui(display, pip) {
         var mag = Math.pow(1.5, Math.max(Math.min(-e.deltaY/100, 1), -1))
         var cx = cur.cx + dx/cur.pixscale*(1-1/mag)
         var cy = cur.cy + dy/cur.pixscale*(1-1/mag)
-        setTarget(cur.ftype, cur.jx, cur.jy, cx, cy, cur.scale*mag, cur.maxiter, 'static')
+        setTarget(cur.ftype, cur.jx, cur.jy, cx, cy, cur.scale*mag, cur.maxiter, cur.travel)
     }
     ;['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach((et) => {
         window.addEventListener(et, handleTouch, {passive: false})
@@ -222,7 +222,7 @@ function ui(display, pip) {
                           cur.jy,
                           cur.scale,
                           cur.maxiter,
-                          'static')
+                          cur.travel)
             }
             lasttouch = null
             return
@@ -244,7 +244,7 @@ function ui(display, pip) {
                           cur.cy,
                           cur.scale,
                           cur.maxiter,
-                          'static')
+                          cur.travel)
             }
             lasttouch = {
                 n: e.targetTouches.length,
@@ -289,7 +289,7 @@ function ui(display, pip) {
                   cur.cy - dy/cur.pixscale + magy/cur.pixscale*(1-1/mag),
                   cur.scale*mag,
                   cur.maxiter,
-                  'static')
+                  cur.travel)
     }
 }
 

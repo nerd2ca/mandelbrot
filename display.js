@@ -59,14 +59,14 @@ function Display(args) {
             if (view.renderer.instance.ready &&
                 view.w == newview.w &&
                 view.h == newview.h &&
-                view.ftype == target.ftype &&
-                view.jx == target.jx &&
-                view.jy == target.jy &&
-                view.cx == target.cx &&
-                view.cy == target.cy &&
-                view.scale == target.scale &&
-                view.maxiter == target.maxiter &&
-                view.travel == target.travel &&
+                view.ftype == newview.ftype &&
+                view.jx == newview.jx &&
+                view.jy == newview.jy &&
+                view.cx == newview.cx &&
+                view.cy == newview.cy &&
+                view.scale == newview.scale &&
+                view.maxiter == newview.maxiter &&
+                view.travel == newview.travel &&
                 view.stopped &&
                 view.renderer.instance.renderFinished()) {
                 if (args.onidle)
@@ -176,12 +176,17 @@ function Display(args) {
         }
     }
 
-    function travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel) {
-        if (travel.split('@')[0] == 'zoom') {
+    function travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel, t0) {
+        var funcandargs = travel.split('@')
+        var func = funcandargs[0]
+        var args = []
+        try {
+            args = funcandargs[1].split(',')
+        } catch(e) { }
+        if (func == 'zoom') {
             const scale0 = 0.25
             const scale1 = scale
             var zoomspeed = travel.split('@')[1].split(',')[0]
-            var t0 = performance.now()
             var t1 = t0 + 1000 * Math.log(scale/scale0)/Math.log(2)/zoomspeed
             return function(now) {
                 if (now >= t1) {
@@ -198,6 +203,30 @@ function Display(args) {
                     maxiter: maxiter,
                     travel: travel,
                     stopped: now == t1,
+                    t0: t0,
+                }
+            }
+        }
+        if (func == 'ellipse') {
+            // ellipse@-0.503121934426349,-0.564071589939249,0.0417,0.0417,30
+            var ex = parseFloat(args[0])
+            var ey = parseFloat(args[1])
+            var rx = parseFloat(args[2])
+            var ry = parseFloat(args[3])
+            var p = parseFloat(args[4]) * 1000
+            return function(now) {
+                var alpha = 2 * Math.PI * (now - t0) / p
+                return {
+                    ftype: ftype,
+                    jx: ex + rx * Math.cos(alpha),
+                    jy: ey + ry * Math.sin(alpha),
+                    cx: cx,
+                    cy: cy,
+                    scale: scale,
+                    maxiter: maxiter,
+                    travel: travel,
+                    stopped: false,
+                    t0: t0,
                 }
             }
         }
@@ -235,7 +264,7 @@ function Display(args) {
         target.pixscale = scale * Math.min(w, h)
         target.maxiter = maxiter
         target.travel = travel
-        target.travelfunc = travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel)
+        target.travelfunc = travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel, view.t0 || performance.now())
         view.cx = cx
         view.cy = cy
         view.maxiter = maxiter
