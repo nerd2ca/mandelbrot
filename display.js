@@ -10,7 +10,8 @@ function Display(args) {
             cy: 0,
             scale: 1,
             maxiter: 2,
-            speed: 2,
+            travel: 'zoom@2',
+            travelfunc: travelfunc(0,0,0,0,0,1,2,'zoom@2'),
             t1: -1,
         },
         view = {
@@ -20,7 +21,7 @@ function Display(args) {
             cy: 0,
             scale: 1,
             maxiter: 2,
-            speed: 2,
+            travel: 'zoom@2',
         },
         pendingView,
         lastFrameTime
@@ -47,23 +48,10 @@ function Display(args) {
 
     function _draw(now) {
         af_id = null
-        var newview = {
-            w: w,
-            h: h,
-            ftype: target.ftype,
-            jx: target.jx,
-            jy: target.jy,
-            cx: target.cx,
-            cy: target.cy,
-            maxiter: target.maxiter,
-            speed: target.speed,
-        }
-        if (now >= target.t1) {
-            newview.scale = target.scale
-        } else {
-            newview.scale = target.scale0 * Math.pow(target.scale/target.scale0, (now-target.t0)/(target.t1-target.t0))
-        }
-        newview.pixscale = view.scale * Math.min(w, h)
+        var newview = target.travelfunc(now)
+        newview.w = w
+        newview.h = h
+        newview.pixscale = newview.scale * Math.min(w, h)
         if (pendingView && pendingView.renderer && pendingView.renderer.instance.renderShown()) {
             view = pendingView
             lastFrameTime = now - pendingView.renderStart
@@ -78,7 +66,8 @@ function Display(args) {
                 view.cy == target.cy &&
                 view.scale == target.scale &&
                 view.maxiter == target.maxiter &&
-                view.speed == target.speed &&
+                view.travel == target.travel &&
+                view.stopped &&
                 view.renderer.instance.renderFinished()) {
                 if (args.onidle)
                     args.onidle()
@@ -168,12 +157,12 @@ function Display(args) {
             scale: target.scale,
             pixscale: target.scale * Math.min(w, h),
             maxiter: target.maxiter,
-            speed: target.speed,
+            travel: target.travel,
         }
     }
 
     function currentView() {
-        var v = target.t1 <= performance.now() ? target : (pendingView || view)
+        var v = pendingView || view
         return {
             ftype: v.ftype,
             jx: v.jx,
@@ -183,11 +172,51 @@ function Display(args) {
             scale: v.scale,
             pixscale: v.scale * Math.min(w, h),
             maxiter: v.maxiter,
-            speed: v.speed,
+            travel: v.travel,
         }
     }
 
-    function setTarget(ftype, jx, jy, cx, cy, scale, maxiter, speed, seconds) {
+    function travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel) {
+        if (travel.split('@')[0] == 'zoom') {
+            const scale0 = 0.25
+            const scale1 = scale
+            var zoomspeed = travel.split('@')[1].split(',')[0]
+            var t0 = performance.now()
+            var t1 = t0 + 1000 * Math.log(scale/scale0)/Math.log(2)/zoomspeed
+            return function(now) {
+                if (now >= t1) {
+                    now = t1
+                }
+                var scale = scale0 * Math.pow(scale1/scale0, (now-t0)/(t1-t0))
+                return {
+                    ftype: ftype,
+                    jx: jx,
+                    jy: jy,
+                    cx: cx,
+                    cy: cy,
+                    scale: scale,
+                    maxiter: maxiter,
+                    travel: travel,
+                    stopped: now == t1,
+                }
+            }
+        }
+        return function() {
+            return {
+                ftype: ftype,
+                jx: jx,
+                jy: jy,
+                cx: cx,
+                cy: cy,
+                scale: scale,
+                maxiter: maxiter,
+                travel: travel,
+                stopped: true,
+            }
+        }
+    }
+
+    function setTarget(ftype, jx, jy, cx, cy, scale, maxiter, travel) {
         if (cx < -2) cx = -2
         if (cx > 2) cx = 2
         if (cy < -2) cy = -2
@@ -205,17 +234,12 @@ function Display(args) {
         target.scale = scale
         target.pixscale = scale * Math.min(w, h)
         target.maxiter = maxiter
-        target.speed = speed
+        target.travel = travel
+        target.travelfunc = travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel)
         view.cx = cx
         view.cy = cy
         view.maxiter = maxiter
-        view.speed = speed
-        if (seconds) {
-            target.t0 = performance.now()
-            target.t1 = performance.now() + seconds*1000
-            target.scale0 = view.scale
-        } else
-            target.t1 = -1
+        view.travel = travel
         draw()
     }
 }
