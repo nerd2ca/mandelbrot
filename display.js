@@ -208,18 +208,21 @@ function Display(args) {
             }
         }
         if (func == 'ellipse') {
-            // ellipse@-0.503121934426349,-0.564071589939249,0.0417,0.0417,30
+            // ellipse@-0.503121934426349,-0.564071589939249,0.0417,0.0417,5,0.5,60
             var ex = parseFloat(args[0])
             var ey = parseFloat(args[1])
             var rx = parseFloat(args[2])
             var ry = parseFloat(args[3])
             var p = parseFloat(args[4]) * 1000
+            var spiralmag = parseFloat(args[5])
+            var spiralp = parseFloat(args[6] || args[4]) * 1000
             return function(now) {
-                var alpha = 2 * Math.PI * (now - t0) / p
+                var alpha = 2 * Math.PI * (now - t0)
+                var spiralfactor = 1 + spiralmag * Math.sin(alpha/spiralp)
                 return {
                     ftype: ftype,
-                    jx: ex + rx * Math.cos(alpha),
-                    jy: ey + ry * Math.sin(alpha),
+                    jx: ex + rx * Math.cos(alpha/p) * spiralfactor,
+                    jy: ey + ry * Math.sin(alpha/p) * spiralfactor,
                     cx: cx,
                     cy: cy,
                     scale: scale,
