@@ -224,7 +224,7 @@ function Display(args) {
             var spiralp = parseFloat(args[6] || args[4]) * 1000
             return function(now) {
                 var alpha = 2 * Math.PI * (now - t0)
-                var spiralfactor = 1 + spiralmag * Math.sin(alpha/spiralp)
+                var spiralfactor = 1 - spiralmag * Math.cos(alpha/spiralp)
                 return {
                     ftype: ftype,
                     jx: ex + rx * Math.cos(alpha/p) * spiralfactor,
