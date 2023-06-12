@@ -1,18 +1,20 @@
+const pip = new Pip(document.getElementById('pip'))
 new ui(
     new Display({
+        ondraw: pip.showOther,
         renderers: [
             {ctor: glRenderer, canvas: document.getElementById('gl')},
             {ctor: nativeRenderer, canvas: document.getElementById('nogl')},
         ],
     }),
-    new Pip(document.getElementById('pip')),
+    pip,
 )
 
 function Pip(canvas) {
     canvas.style.position = 'absolute'
     canvas.style.left = 0
     canvas.style.top = 0
-    this.show = show
+    this.showOther = showOther
     this.hide = hide
     hide()
     var disp = new Display({
@@ -22,10 +24,13 @@ function Pip(canvas) {
         width: 100,
         height: 100,
     })
-    function show(ftype, jx, jy, tx, ty, scale, maxiter, travel, seconds) {
+    function showOther(t) {
         canvas.style.display = 'block'
-        disp.crosshair = jx != 0 || jy != 0
-        disp.setTarget(ftype, jx, jy, tx, ty, 2*scale, maxiter, travel, seconds)
+        disp.crosshair = t.jx != 0 || t.jy != 0
+        if (t.jx == 0 && t.jy == 0)
+            disp.setTarget(2, t.cx, t.cy, 0, 0, 0.2, t.maxiter, 'static')
+        else
+            disp.setTarget(1, 0, 0, t.jx, t.jy, t.scale * 8, t.maxiter, 'static')
     }
     function hide() {
         canvas.style.display = 'none'
@@ -65,8 +70,6 @@ function ui(display, pip) {
             document.location.hash = curhash
         }, 250)
         display.setTarget(ftype, jx, jy, cx, cy, scale, maxiter, travel)
-        if (jx == 0 && jy == 0) pip.show(1, cx, cy, 0, 0, 0.2, maxiter, travel)
-        else pip.show(2, 0, 0, jx, jy, scale, maxiter, travel)
     }
 
     window.addEventListener('keydown', async e => {

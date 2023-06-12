@@ -99,6 +99,8 @@ function Display(args) {
         newview.renderStart = now
         update_palette(palette, newview.maxiter)
         newview.renderer.instance.render(newview.ftype, newview.jx, newview.jy, newview.cx, newview.cy, newview.scale, palette)
+        if (args.ondraw)
+            args.ondraw(newview)
         pendingView = newview
         af_id = window.requestAnimationFrame(_draw)
     }
@@ -158,6 +160,7 @@ function Display(args) {
             pixscale: target.scale * Math.min(w, h),
             maxiter: target.maxiter,
             travel: target.travel,
+            travelfunc: target.travelfunc,
         }
     }
 
@@ -177,6 +180,9 @@ function Display(args) {
     }
 
     function travelfunc(ftype, jx, jy, cx, cy, scale, maxiter, travel, t0) {
+        if (typeof travel == 'function') {
+            return travel
+        }
         var funcandargs = travel.split('@')
         var func = funcandargs[0]
         var args = []
