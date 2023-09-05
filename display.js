@@ -201,6 +201,7 @@ function Display(args) {
                     now = t1
                 }
                 var scale = scale0 * Math.pow(scale1/scale0, (now-t0)/(t1-t0))
+                    || scale1   // cover pow(1, NaN) case when t0==t1==now
                 return {
                     ftype: ftype,
                     jx: jx,
