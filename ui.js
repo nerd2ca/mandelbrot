@@ -54,7 +54,7 @@ function ui(display, pip) {
             jx = parseFloat(params[4]) || 0,
             jy = parseFloat(params[5]) || 0,
             ftype = parseInt(params[6]) || 1,
-            travel = params[7] || 'zoom@2'
+            travel = params[7] || 'static'
         setTarget(ftype, jx, jy, cx, cy, scale, maxiter, travel)
     }
 
