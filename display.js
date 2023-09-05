@@ -192,6 +192,8 @@ function Display(args) {
         if (func == 'zoom') {
             const scale0 = 0.25
             const scale1 = scale
+            if (scale1 < scale0)
+                scale1 = scale0
             var zoomspeed = travel.split('@')[1].split(',')[0]
             var t1 = t0 + 1000 * Math.log(scale/scale0)/Math.log(2)/zoomspeed
             return function(now) {
