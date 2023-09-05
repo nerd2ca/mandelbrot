@@ -165,7 +165,7 @@ function Display(args) {
     }
 
     function currentView() {
-        var v = pendingView || view
+        var v = view.stopped ? target : pendingView || view
         return {
             ftype: v.ftype,
             jx: v.jx,
